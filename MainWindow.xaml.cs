@@ -20,6 +20,9 @@ using System.IO;
 using System.Drawing;
 using System.Windows.Interop;
 using System.Drawing.Imaging;
+using System.Xml;
+using System.Threading;
+using System.Runtime.InteropServices;
 
 namespace HSI
 {
@@ -38,143 +41,94 @@ namespace HSI
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
+            int numOfBands = 3;
             OpenFileDialog ofd = new OpenFileDialog();
             ofd.Filter = "HSI | *.tif;*.tiff";
-            ofd.InitialDirectory = "D:\\HSI_images\\LC08_L2SP_175020_20201002_20201007_02_T1";
+            ofd.InitialDirectory = "C:\\Users\\55000\\Downloads\\LC08_L2SP_174021_20200621_20200823_02_T1";
             ofd.Multiselect = true;
             //if (ofd.ShowDialog() == true)
             //{
-                string imagePath1 = "", imagePath2 = "", imagePath3 = "";
-                var directory = Directory.GetFiles(ofd.InitialDirectory);
-                foreach (var x in directory)
+            XmlDocument xmldoc = new XmlDocument();
+            string infoPath = "";
+            string[] bandPaths = new string[numOfBands];
+            var directory = Directory.GetFiles(ofd.InitialDirectory);
+            foreach (var x in directory)
+            {
+                if (x.ToLower().EndsWith("mtl.xml")) infoPath = x; //xmldoc.Load(x);
+                if (x.ElementAt(x.Length - 5) == '6') bandPaths[0] = x;
+                if (x.ElementAt(x.Length - 5) == '4') bandPaths[1] = x;
+                if (x.ElementAt(x.Length - 5) == '2') bandPaths[2] = x;
+            }
+
+            XmlReader xml = XmlReader.Create(infoPath);
+
+            BitmapSource[] bands = new BitmapSource[numOfBands];
+            Parallel.For(0, numOfBands, (i) => {
+                bands[i] = BandToBitmap_TIF(bandPaths[i]);
+            });
+
+            int width = bands[0].PixelWidth;
+            int height = bands[0].PixelHeight;
+            int bytesPerPixel = (bands[0].Format.BitsPerPixel + 7) / 8;
+            int stride = width * bytesPerPixel;
+            int arrayLength = stride * height;
+
+            byte[] arr1 = new byte[arrayLength];
+            byte[] arr2 = new byte[arrayLength];
+            byte[] arr3 = new byte[arrayLength];
+            //byte[] tiffArray = System.IO.File.ReadAllBytes(imagePath1);     
+            //System.IO.File.WriteAllBytes(ofd.InitialDirectory + "\\TiffFile.tif", tiffArray);
+            bitmap1.CopyPixels(arr1, stride, 0);
+            bitmap2.CopyPixels(arr2, stride, 0);
+            bitmap3.CopyPixels(arr3, stride, 0);
+            
+            bytesPerPixel = 6;
+            stride = width * bytesPerPixel;
+            arrayLength = stride * height;
+            var res = new byte[arrayLength];
+
+            Parallel.ForEach(Enumerable.Range(0, arrayLength * 2 / bytesPerPixel - bytesPerPixel).Select(i => i += 2), i =>
+            {               
+                int index1 = i / 2 * bytesPerPixel; 
+                int index2 = i + 1 == arr1.Length? i : i + 1; 
+
+                res[index1] = arr1[index2];
+                res[index1 + 1] = arr1[index2 + 1];
+                res[index1 + 2] = arr2[index2];
+                res[index1 + 3] = arr2[index2 + 1];
+                res[index1 + 4] = arr3[index2];
+                res[index1 + 5] = arr3[index2 + 1];
+            });
+
+            using (FileStream str = new FileStream(ofd.InitialDirectory + "\\1.tif", FileMode.OpenOrCreate))
+            {
+                List<System.Windows.Media.Color> colors = new List<System.Windows.Media.Color>
                 {
-                    if (x.ElementAt(x.Length - 5) == '5') imagePath3 = x;
-                    if (x.ElementAt(x.Length - 5) == '4') imagePath2 = x;
-                    if (x.ElementAt(x.Length - 5) == '3') imagePath1 = x;
-                }
-                Stream band1str = null;
-                Stream band2str = null;
-                Stream band3str = null;
-                //Parallel.Invoke(()=>
-                //{
-                //    band1str = new FileStream(ofd.FileNames[0], FileMode.Open, FileAccess.Read, FileShare.Read);
-                //}, () =>
-                //{
-                //    band2str = new FileStream(ofd.FileNames[1], FileMode.Open, FileAccess.Read, FileShare.Read);
-                //}, () =>
-                //{
-                //    band3str = new FileStream(ofd.FileNames[2], FileMode.Open, FileAccess.Read, FileShare.Read);
-                //});
-                //TiffBitmapDecoder decoder;
-                //BitmapSource band1src = null;
-                //BitmapSource band2src = null;
-                //BitmapSource band3src = null;               
-                
-                //Parallel.Invoke(() =>
-                //{
-                //    band1str = new FileStream(ofd.FileNames[0], FileMode.Open, FileAccess.Read, FileShare.Read);
-                //    decoder = new TiffBitmapDecoder(band1str, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
-                //    band1src = decoder.Frames[0];  
-                //}, () =>
-                //{
-                //    band2str = new FileStream(ofd.FileNames[1], FileMode.Open, FileAccess.Read, FileShare.Read);
-                //    decoder = new TiffBitmapDecoder(band2str, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
-                //    band2src = decoder.Frames[0];                  
-                //}, () =>
-                //{
-                //    band3str = new FileStream(ofd.FileNames[2], FileMode.Open, FileAccess.Read, FileShare.Read);
-                //    decoder = new TiffBitmapDecoder(band3str, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
-                //    band3src = decoder.Frames[0];                
-                //});
-                
-                //WriteableBitmap wb1 = new WriteableBitmap(band1src);
-                //WriteableBitmap wb2 = new WriteableBitmap(band2src);
-                //WriteableBitmap wb3 = new WriteableBitmap(band3src);
-                //img.Source = bms;
-                //b = new Bitmap(ofd.FileName);
-                //wb = new WriteableBitmap(band1src);
-                
-                //byte[] arr1 = new byte[arrayLength];
-                //byte[] arr2 = new byte[arrayLength];
-                //byte[] arr3 = new byte[arrayLength];
-                //band1src.CopyPixels(arr1, stride, 0);
-                //band2src.CopyPixels(arr2, stride, 0);
-                //band3src.CopyPixels(arr3, stride, 0);
-                
-                Bitmap bitmap1 = new Bitmap(imagePath1);
-                Bitmap bitmap2 = new Bitmap(imagePath2);
-                Bitmap bitmap3 = new Bitmap(imagePath3);
+                    Colors.Red,
+                    Colors.Green,
+                    Colors.Blue
+                };
 
-                //Dataset band1 = Gdal.Open(ofd.FileNames[0], Access.GA_ReadOnly);
-                /*Dataset band1 = Gdal.Open(imagePath1, Access.GA_ReadOnly);
-                Band r = band1.GetRasterBand(1);
-                int[] arr1 = new int[r.XSize * r.YSize];
-                r.ReadRaster(0, 0, r.XSize, r.XSize, arr1, r.XSize, r.XSize, 0, 0);
-                //Dataset band2 = Gdal.Open(ofd.FileNames[1], Access.GA_ReadOnly);
-                Dataset band2 = Gdal.Open(imagePath2, Access.GA_ReadOnly);
-                r = band2.GetRasterBand(1);
-                byte[] arr2 = new byte[r.XSize * r.YSize];
-                r.ReadRaster(0, 0, r.XSize, r.XSize, arr2, r.XSize, r.XSize, 0, 0);
-                //Dataset band3 = Gdal.Open(ofd.FileNames[2], Access.GA_ReadOnly);
-                Dataset band3 = Gdal.Open(imagePath3, Access.GA_ReadOnly);
-                r = band3.GetRasterBand(1);
-                byte[] arr3 = new byte[r.XSize * r.YSize];
-                r.ReadRaster(0, 0, r.XSize, r.XSize, arr3, r.XSize, r.XSize, 0, 0);*/
-                //int bytesPerPixel = (band1src.Format.BitsPerPixel + 7) / 8;
-                //int stride = 4 * ((band1src.PixelWidth * bytesPerPixel + 3) / 4);
-                //int arrayLength = stride * band1src.PixelHeight;
-                         
-                int w = bitmap1.Width;
-                int h = bitmap1.Height;
-                //Bitmap res = new Bitmap(w, h);
-                //BitmapData bitmapData = res.LockBits(new System.Drawing.Rectangle(0, 0, w, h), ImageLockMode.ReadWrite, System.Drawing.Imaging.PixelFormat.Format32bppRgb);
-                /*string[] options = new string[] { "BLOCKXSIZE=" + w, "BLOCKYSIZE=" + h };
-                using (Dataset res = Gdal.GetDriverByName("GTiff").Create(ofd.InitialDirectory + "\\1", w, h, 3, DataType.GDT_Byte, options)) {
-                    double[] geoTransformerData = new double[6];
-                    band1.GetGeoTransform(geoTransformerData);
-                    res.SetGeoTransform(geoTransformerData);
-                    res.SetProjection(band1.GetProjection());
-                    Band outRedBand = res.GetRasterBand(1);
-                    Band outGreenBand = res.GetRasterBand(2);
-                    Band outBlueBand = res.GetRasterBand(3);
-                    //res.AddBand(DataType.GDT_Float32, options);
+                BitmapPalette myPalette = new BitmapPalette(colors);
+                var result = BitmapSource.Create(width, height, 96, 96, PixelFormats.Rgb48, null, res, stride);
+                TiffBitmapEncoder encoder = new TiffBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(result));
+                encoder.Save(str);
+                img.Source = result;
                 
-                    outRedBand.WriteRaster(0, 0, w, h, arr1, w, h, 0, 0);
-                    outGreenBand.WriteRaster(0, 0, w, h, arr2, w, h, 0, 0);
-                    outBlueBand.WriteRaster(0, 0, w, h, arr3, w, h, 0, 0);
-                    res.FlushCache();
-                }*/
-                
-                              
-                //Parallel.For(0, band1.Width, (j) => {
-                
-                using (FileStream stream = new FileStream(ofd.InitialDirectory + "\\1.tif", FileMode.Create))
-                {
-                    var result = new Bitmap(w, h);
-                    for (int i = 0; i < w; i++)
-                        for (int j = 0; j < h; j++)
-                        {
-                            //int index = i * w + j;
-                            var color = System.Drawing.Color.FromArgb(bitmap1.GetPixel(i, j).R, bitmap2.GetPixel(i, j).R,
-                                bitmap3.GetPixel(i, j).R);
-                            result.SetPixel(i, j, color);
-                        }
-                    var encoder = new TiffBitmapEncoder();
-                    var res_src = Imaging.CreateBitmapSourceFromHBitmap(result.GetHbitmap(), IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
-                    encoder.Frames.Add(BitmapFrame.Create(res_src));
-                    encoder.Save(stream);
-                    
-                    result.Dispose();
-                }
-            //});
+                //result.Dispose();
+            }
+            //FileStream band1str = new FileStream(ofd.InitialDirectory + "\\1.tif", FileMode.Open, FileAccess.Read, FileShare.Read);
+            //TiffBitmapDecoder dec = new TiffBitmapDecoder(band1str, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
+            //var band1src = dec.Frames[0];
+            //img.Source = band1src;
+        }
 
-            band1str = new FileStream(ofd.InitialDirectory + "\\1.tif", FileMode.Open, FileAccess.Read, FileShare.Read);
-            var decoder = new TiffBitmapDecoder(band1str, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
-            var band1src = decoder.Frames[0];
-
-            //var res_src = Imaging.CreateBitmapSourceFromHBitmap(res.GetHbitmap(), IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
-            img.Source = band1src;
-            //}
+        BitmapSource BandToBitmap_TIF(string path)
+        {
+            FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            TiffBitmapDecoder decoder = new TiffBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
+            return decoder.Frames[0];
         }
 
         private void MenuItem_Click(object sender, RoutedEventArgs e)
