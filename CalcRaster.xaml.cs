@@ -20,14 +20,15 @@ namespace HSI
     /// <summary>
     /// Логика взаимодействия для AddImage.xaml
     /// </summary>
-    public partial class ImageAdding : Window
+    public partial class CalcRaster : Window
     {
-        public string path = "";
+        public string path;
         public string[] BandPaths = new string[3];
         public string Camera;
+        public string Formula;
         private VistaFolderBrowserDialog openFileDialog;
 
-        public ImageAdding()
+        public CalcRaster()
         {
             InitializeComponent();
         }
@@ -36,6 +37,7 @@ namespace HSI
         {
             ListBoxItem l = (ListBoxItem)cam.SelectedItem;
             Camera = l.Content.ToString();
+            Formula = formula.Text;
             switch (Camera)
             {
                 case "Landsat 8":
@@ -107,6 +109,15 @@ namespace HSI
                 BandPaths[2] = file;
                 ch3.Text = "...";
             }
+        }
+
+        void AddSymbol(object sender, RoutedEventArgs e)
+        {
+            Button button = (Button)sender;
+            string op = (string)button.Content;
+
+            formula.Text += op + " ";
+            
         }
     }
 }

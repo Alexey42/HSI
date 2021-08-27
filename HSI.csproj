@@ -109,6 +109,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Page Include="CalcRaster.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="ImageAdding.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -117,6 +121,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Compile Include="CalcRaster.xaml.cs">
+      <DependentUpon>CalcRaster.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ImageAdding.xaml.cs">
       <DependentUpon>ImageAdding.xaml</DependentUpon>
     </Compile>
@@ -130,6 +137,17 @@
     <Compile Include="ModelAdding.xaml.cs">
       <DependentUpon>ModelAdding.xaml</DependentUpon>
     </Compile>
+    <Compile Include="RPN\FunctionAttribute.cs" />
+    <Compile Include="RPN\RPNArguments.cs" />
+    <Compile Include="RPN\RPNEnvironment.cs" />
+    <Compile Include="RPN\RPNExec.cs" />
+    <Compile Include="RPN\RPNExpression.cs" />
+    <Compile Include="RPN\RPNFunction.cs" />
+    <Compile Include="RPN\RPNFunctions.cs" />
+    <Compile Include="RPN\RPNOperandType.cs" />
+    <Compile Include="RPN\RPNToken.cs" />
+    <Compile Include="RPN\RPNTokenType.cs" />
+    <Compile Include="RPN\RPNUtils.cs" />
     <Compile Include="VectorOperations.cs" />
     <Compile Include="PanAndZoom.cs" />
     <Compile Include="Pixels\IPixel.cs" />
@@ -174,6 +192,7 @@
   <ItemGroup>
     <Content Include="GdalConfiguration.vb" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\GDAL.Native.2.4.4\build\net40\GDAL.Native.targets" Condition="Exists('..\packages\GDAL.Native.2.4.4\build\net40\GDAL.Native.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

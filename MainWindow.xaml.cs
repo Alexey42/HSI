@@ -29,6 +29,7 @@ using ru.lsreg.math;
 using System.Diagnostics;
 using System.ComponentModel;
 using System.Windows.Markup;
+using com.sgcombo.RpnLib;
 
 namespace HSI
 {
@@ -43,6 +44,7 @@ public partial class MainWindow : System.Windows.Window
         ImageInfo imageInfo;
         List<Model> models;
         BackgroundWorker backgroundWorker;
+        string Formula = "";
 
         public MainWindow()
         {
@@ -107,14 +109,16 @@ public partial class MainWindow : System.Windows.Window
             arrayLength = stride * height;
             var result = new byte[arrayLength];
 
-            for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i++)
+            for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i+=2)
             {
                 int index1 = i / 2 * bytesPerPixel;
-                int index2 = i + 1 == pixelArrays[0].Length ? i : i + 1;
 
-                result[index1 + 1] = (byte)(pixelArrays[0][index2 + 1] * 2.2);
-                result[index1 + 3] = (byte)(pixelArrays[1][index2 + 1] * 2.2);
-                result[index1 + 5] = (byte)(pixelArrays[2][index2 + 1] * 2.2);
+                //result[index1] = (byte)(pixelArrays[0][i] * 2.2);
+                result[index1 + 1] = (byte)(pixelArrays[0][i + 1] * 2.2);
+                //result[index1 + 2] = (byte)(pixelArrays[1][i] * 2.2);
+                result[index1 + 3] = (byte)(pixelArrays[1][i + 1] * 2.2);
+                //result[index1 + 4] = (byte)(pixelArrays[2][i] * 2.2);
+                result[index1 + 5] = (byte)(pixelArrays[2][i + 1] * 2.2);
             }
 
             backgroundWorker.ReportProgress(100);
@@ -440,40 +444,6 @@ public partial class MainWindow : System.Windows.Window
                     i++;
                 }
 
-                /*for (int i = 0; i < c; )
-                {
-                    if (wrapedBytes[i] > maxR[0])
-                    {
-                        maxR[0] = wrapedBytes[i];
-                        maxR[1] = wrapedBytes[i + 1];
-                        maxR[2] = wrapedBytes[i + 2];
-                    }
-                    i++;
-                    if (wrapedBytes[i] > maxG[1])
-                    {
-                        maxG[0] = wrapedBytes[i - 1];
-                        maxG[1] = wrapedBytes[i];
-                        maxG[2] = wrapedBytes[i + 1];
-                    }
-                    i++;
-                    if (wrapedBytes[i] > maxB[2])
-                    {
-                        maxB[0] = wrapedBytes[i - 2];
-                        maxB[1] = wrapedBytes[i - 1];
-                        maxB[2] = wrapedBytes[i];
-                    }
-                    i++;              
-                }*/
-                /*maxR[0] = wrapedBytes[0];
-                maxR[1] = wrapedBytes[1];
-                maxR[2] = wrapedBytes[2];
-                maxG[0] = wrapedBytes[3];
-                maxG[1] = wrapedBytes[4];
-                maxG[2] = wrapedBytes[5];
-                maxB[0] = wrapedBytes[6];
-                maxB[1] = wrapedBytes[7];
-                maxB[2] = wrapedBytes[8];*/
-
                 ModelAdding dialog = new ModelAdding();
                 if (dialog.ShowDialog() == true)
                 {
@@ -529,6 +499,10 @@ public partial class MainWindow : System.Windows.Window
                     res = new Tuple<string, byte[]>("AddImage", AddImage());
                     e.Result = res;
                     break;
+                case "CalculateRaster":
+                    res = new Tuple<string, byte[]>("CalculateRaster", CalculateRaster());
+                    e.Result = res;
+                    break;
             }
         }
 
@@ -547,6 +521,10 @@ public partial class MainWindow : System.Windows.Window
                     scr_img.Source = SaveImage("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\1.tif", imageInfo.width, imageInfo.height, imageInfo.dpi, imageInfo.dpi, PixelFormats.Rgb48, res.Item2, imageInfo.stride);
                     addImage_btn.IsEnabled = true;
                     break;
+                case "CalculateRaster":
+                    scr_img.Source = SaveImage("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\4.tif", imageInfo.width, imageInfo.height, imageInfo.dpi, imageInfo.dpi, PixelFormats.Rgb48, res.Item2, imageInfo.stride);
+                    calcRaster_btn.IsEnabled = true;
+                    break;
             }
             
             
@@ -555,6 +533,107 @@ public partial class MainWindow : System.Windows.Window
         private void BackgroundWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
         {
             progressBar.Value = e.ProgressPercentage;
+        }
+
+        private void calcRaster_btn_Click(object sender, RoutedEventArgs e)
+        {
+            CalcRaster dialog = new CalcRaster();
+            if (dialog.ShowDialog() == true)
+            {
+                imageInfo.bandPaths = dialog.BandPaths;
+                imageInfo.path = dialog.path;
+                calcRaster_btn.IsEnabled = false;
+                Formula = dialog.Formula;
+            }
+            else
+                return;
+
+            backgroundWorker.RunWorkerAsync("CalculateRaster");
+        }
+
+        byte[] CalculateRaster()
+        {
+            int progress = 0;
+            int numOfBands = 3;
+            BitmapSource[] bands = new BitmapSource[numOfBands];
+
+            //backgroundWorker.ReportProgress(5);
+            Parallel.For(0, numOfBands, (i) => {
+                bands[i] = BandToBitmap_TIF(imageInfo.bandPaths[i]);
+            });
+
+            double dpi = bands[0].DpiX;
+            int width = bands[0].PixelWidth;
+            int height = bands[0].PixelHeight;
+            int bytesPerPixel = (bands[0].Format.BitsPerPixel + 7) / 8;
+            int stride = width * bytesPerPixel;
+            int arrayLength = stride * height;
+
+            List<byte[]> pixelArrays = new List<byte[]>();
+            for (int i = 0; i < numOfBands; i++)
+                pixelArrays.Add(new byte[arrayLength]);
+
+            Parallel.For(0, numOfBands, (i) => {
+                bands[i].CopyPixels(pixelArrays[i], stride, 0);
+                progress++;
+                //backgroundWorker.ReportProgress(progress * 30);
+            });
+            //byte[] tiffArray = System.IO.File.ReadAllBytes(imagePath1);     
+            //System.IO.File.WriteAllBytes(ofd.InitialDirectory + "\\TiffFile.tif", tiffArray);
+
+            bytesPerPixel = 6;
+            stride = width * bytesPerPixel;
+            arrayLength = stride * height;
+            var result = new byte[arrayLength];
+
+            Formula = Formula.Replace("Ch1", "x").Replace("Ch2", "y").Replace("Ch3", "z");
+            var comp = new RPNExpression(Formula);
+            var RPNString = comp.Prepare();
+            List<RPNArguments> arguments = new List<RPNArguments>();
+            arguments.Add(new RPNArguments("x", 4));
+            arguments.Add(new RPNArguments("y", 5));
+            var e = comp.Calculate(arguments);
+            var y = e(4, 5);
+
+            //Parallel.For(0, arrayLength * 2 / bytesPerPixel - bytesPerPixel, (i) =>
+            for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i++)
+            {
+                if (pixelArrays[0][i] + pixelArrays[1][i] != 0)
+                {
+                    int index1 = i / 2 * bytesPerPixel;
+                    //List<RPNArguments> arguments = new List<RPNArguments>();
+                    arguments.Add(new RPNArguments("x", pixelArrays[0][i]));
+                    arguments.Add(new RPNArguments("y", pixelArrays[1][i]));
+                    //double temp = (double)comp.Calculate(arguments);
+                    //result[index1 + 1] = (byte)((1 + temp) * 200);
+                    //result[index1 + 3] = (byte)((1 - temp) * 200);
+                    //result[index1 + 5] = 0;//(byte)Math.Abs(temp * 200);
+                }
+
+                progress++;
+                if (progress % ((arrayLength * 2 / bytesPerPixel - bytesPerPixel) / 100) == 0)
+                    backgroundWorker.ReportProgress(progress / ((arrayLength * 2 / bytesPerPixel - bytesPerPixel) / 100));
+            }//);
+            /*for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i++)
+            {
+                if (pixelArrays[0][i] + pixelArrays[1][i] == 0)
+                    continue;
+                int index1 = i / 2 * bytesPerPixel;
+                
+                double m = pixelArrays[0][i];
+                double n = pixelArrays[1][i];              
+                double temp = (m - n) / (m + n);
+
+                result[index1 + 1] = (byte)((1 + temp) * 200);
+                result[index1 + 3] = (byte)((1 - temp) * 200);
+                result[index1 + 5] = 0;//(byte)Math.Abs(temp * 200);
+            }*/
+            
+            backgroundWorker.ReportProgress(100);
+            bitmapBytes = result;
+            imageInfo = new ImageInfo(result, width, height, dpi, bytesPerPixel, stride);
+
+            return result;
         }
     }
 }
