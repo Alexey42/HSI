@@ -107,25 +107,25 @@ public partial class MainWindow : System.Windows.Window
             bytesPerPixel = 6;
             stride = width * bytesPerPixel;
             arrayLength = stride * height;
-            var result = new byte[arrayLength];
+            if (!bitmapBytes.Any())
+                bitmapBytes = new byte[arrayLength];
 
             for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i+=2)
             {
                 int index1 = i / 2 * bytesPerPixel;
 
-                //result[index1] = (byte)(pixelArrays[0][i] * 2.2);
-                result[index1 + 1] = (byte)(pixelArrays[0][i + 1] * 2.2);
-                //result[index1 + 2] = (byte)(pixelArrays[1][i] * 2.2);
-                result[index1 + 3] = (byte)(pixelArrays[1][i + 1] * 2.2);
-                //result[index1 + 4] = (byte)(pixelArrays[2][i] * 2.2);
-                result[index1 + 5] = (byte)(pixelArrays[2][i + 1] * 2.2);
+                //bitmapBytes[index1] = (byte)(pixelArrays[0][i] * 2.2);
+                bitmapBytes[index1 + 1] = (byte)(pixelArrays[0][i + 1] * 2.2);
+                //bitmapBytes[index1 + 2] = (byte)(pixelArrays[1][i] * 2.2);
+                bitmapBytes[index1 + 3] = (byte)(pixelArrays[1][i + 1] * 2.2);
+                //bitmapBytes[index1 + 4] = (byte)(pixelArrays[2][i] * 2.2);
+                bitmapBytes[index1 + 5] = (byte)(pixelArrays[2][i + 1] * 2.2);
             }
 
             backgroundWorker.ReportProgress(100);
-            bitmapBytes = result;
-            imageInfo = new ImageInfo(result, width, height, dpi, bytesPerPixel, stride);
+            imageInfo = new ImageInfo(bitmapBytes, width, height, dpi, bytesPerPixel, stride);
 
-            return result;
+            return bitmapBytes;
         }
 
         BitmapSource BandToBitmap_TIF(string path)
@@ -229,8 +229,6 @@ public partial class MainWindow : System.Windows.Window
 
         byte[] ClassifyBarycentric()
         {
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
             int[] coverCount = new int[models.Count];
             /*int X1 = maxR[0], Y1 = maxR[1], Z1 = maxR[2];
             int X2 = maxG[0], Y2 = maxG[1], Z2 = maxG[2];
@@ -298,8 +296,7 @@ public partial class MainWindow : System.Windows.Window
             }
 
             imageInfo.processedBytes = bitmapBytes;
-            sw.Stop();
-            var time = sw.Elapsed.TotalSeconds;
+            
             return bitmapBytes;
         }
 
@@ -557,7 +554,6 @@ public partial class MainWindow : System.Windows.Window
             int numOfBands = 3;
             BitmapSource[] bands = new BitmapSource[numOfBands];
 
-            //backgroundWorker.ReportProgress(5);
             Parallel.For(0, numOfBands, (i) => {
                 bands[i] = BandToBitmap_TIF(imageInfo.bandPaths[i]);
             });
@@ -575,8 +571,6 @@ public partial class MainWindow : System.Windows.Window
 
             Parallel.For(0, numOfBands, (i) => {
                 bands[i].CopyPixels(pixelArrays[i], stride, 0);
-                progress++;
-                //backgroundWorker.ReportProgress(progress * 30);
             });
             //byte[] tiffArray = System.IO.File.ReadAllBytes(imagePath1);     
             //System.IO.File.WriteAllBytes(ofd.InitialDirectory + "\\TiffFile.tif", tiffArray);
@@ -584,36 +578,38 @@ public partial class MainWindow : System.Windows.Window
             bytesPerPixel = 6;
             stride = width * bytesPerPixel;
             arrayLength = stride * height;
-            var result = new byte[arrayLength];
+            var bitmapBytes = new byte[arrayLength];
 
             Formula = Formula.Replace("Ch1", "x").Replace("Ch2", "y").Replace("Ch3", "z");
             var comp = new RPNExpression(Formula);
             var RPNString = comp.Prepare();
-            List<RPNArguments> arguments = new List<RPNArguments>();
-            arguments.Add(new RPNArguments("x", 4));
-            arguments.Add(new RPNArguments("y", 5));
-            var e = comp.Calculate(arguments);
-            var y = e(4, 5);
+            if (!bitmapBytes.Any())
+                bitmapBytes = new byte[arrayLength];
 
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
             //Parallel.For(0, arrayLength * 2 / bytesPerPixel - bytesPerPixel, (i) =>
             for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i++)
             {
-                if (pixelArrays[0][i] + pixelArrays[1][i] != 0)
+                if (pixelArrays[0][i] + pixelArrays[1][i] + pixelArrays[2][i] != 0)
                 {
                     int index1 = i / 2 * bytesPerPixel;
-                    //List<RPNArguments> arguments = new List<RPNArguments>();
-                    arguments.Add(new RPNArguments("x", pixelArrays[0][i]));
-                    arguments.Add(new RPNArguments("y", pixelArrays[1][i]));
-                    //double temp = (double)comp.Calculate(arguments);
-                    //result[index1 + 1] = (byte)((1 + temp) * 200);
-                    //result[index1 + 3] = (byte)((1 - temp) * 200);
-                    //result[index1 + 5] = 0;//(byte)Math.Abs(temp * 200);
+                    List<RPNArguments> arguments = new List<RPNArguments>() { 
+                        new RPNArguments("x", pixelArrays[0][i]), 
+                        new RPNArguments("y", pixelArrays[1][i]),
+                        new RPNArguments("z", pixelArrays[2][i]) };
+                    double temp = (double)comp.Calculate(arguments);
+                    bitmapBytes[index1 + 1] = (byte)((1 + temp) * 200);
+                    bitmapBytes[index1 + 3] = (byte)((1 - temp) * 200);
+                    bitmapBytes[index1 + 5] = 0;//(byte)Math.Abs(temp * 200);
                 }
-
+                
                 progress++;
                 if (progress % ((arrayLength * 2 / bytesPerPixel - bytesPerPixel) / 100) == 0)
                     backgroundWorker.ReportProgress(progress / ((arrayLength * 2 / bytesPerPixel - bytesPerPixel) / 100));
             }//);
+            sw.Stop();
+            var time = sw.Elapsed.TotalSeconds;
             /*for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i++)
             {
                 if (pixelArrays[0][i] + pixelArrays[1][i] == 0)
@@ -628,12 +624,11 @@ public partial class MainWindow : System.Windows.Window
                 result[index1 + 3] = (byte)((1 - temp) * 200);
                 result[index1 + 5] = 0;//(byte)Math.Abs(temp * 200);
             }*/
-            
-            backgroundWorker.ReportProgress(100);
-            bitmapBytes = result;
-            imageInfo = new ImageInfo(result, width, height, dpi, bytesPerPixel, stride);
 
-            return result;
+            backgroundWorker.ReportProgress(100);
+            imageInfo = new ImageInfo(bitmapBytes, width, height, dpi, bytesPerPixel, stride);
+
+            return bitmapBytes;
         }
     }
 }

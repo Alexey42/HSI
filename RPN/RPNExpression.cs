@@ -84,7 +84,7 @@ namespace com.sgcombo.RpnLib
             return order;
         }
 
-        public Func<double, double, double> Calculate(List<RPNArguments> argument = null)
+        public object Calculate(List<RPNArguments> argument = null)
         {
             RPNExec exec = new RPNExec(execTokens);
             if (argument != null)

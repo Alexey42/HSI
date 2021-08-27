@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq.Expressions;
+
 
 namespace com.sgcombo.RpnLib
 {
 
     class RPNExec
     {
-        public Func<double, double, double> f;
+
         private List<RPNToken> Tokens = new List<RPNToken>();
         private Stack<object> al;
         private Dictionary<string, RPNArguments> vars = new Dictionary<string, RPNArguments>();
@@ -25,10 +25,8 @@ namespace com.sgcombo.RpnLib
 
         
 
-        public Func<double, double, double> Exec()
+        public object Exec()
         {
-            List<Func<double, double, double>> funcs = new List<Func<double, double, double>>();
-            List<double> variables = new List<double>();
             double tempDouble;
             object ret = "";
             int i = 0;
@@ -64,7 +62,6 @@ namespace com.sgcombo.RpnLib
                         if (vars.TryGetValue(tok, out RPNArguments arg))
                         {
                             a = arg.value;
-                            variables.Add(a);
                             al.Push(a);
                         }
                         else
@@ -133,7 +130,6 @@ namespace com.sgcombo.RpnLib
                                 else
                                 {
                                     b = Convert.ToDouble(b11);
-                                    funcs.Add((m, n) => n + m);
                                     r = a + b;
                                 }
                                 break;
@@ -153,39 +149,33 @@ namespace com.sgcombo.RpnLib
                                 else
                                 {
                                     b = Convert.ToDouble(b12);
-                                    funcs.Add((m, n) => n - m);
                                     r =  b - a;
                                 }
                                 break;
                             case RPNOperandType.MULITIPLY:
                                 a = Convert.ToDouble(al.Pop());
                                 b = Convert.ToDouble(al.Pop());
-                                funcs.Add((m, n) => n * m);
                                 r = a * b;
                                 break;
                             case RPNOperandType.DIVIDE:
                                 a = Convert.ToDouble(al.Pop());
                                 b = Convert.ToDouble(al.Pop());
-                                funcs.Add((m, n) => n / m);
                                 r = (b / a);
                                 break;
                             case RPNOperandType.EXPONENTIATION:
                                 a = Convert.ToDouble(al.Pop());
                                 b = Convert.ToDouble(al.Pop());
-                                funcs.Add((m, n) => Math.Pow(n, m));
                                 r = Math.Pow(b, a);
                                 break;
 
                             case RPNOperandType.DIV:  // "/="
                                 a = Convert.ToDouble(al.Pop());
                                 b = Convert.ToDouble(al.Pop());
-                                funcs.Add((m, n) => n / m);
                                 r = (b / a);
                                 break;
                             case RPNOperandType.MOD:  //"%=",
                                 a = Convert.ToDouble(al.Pop());
                                 b = Convert.ToDouble(al.Pop());
-                                funcs.Add((m, n) => n %= m);
                                 r = (b %= a);
                                 break;
                             case RPNOperandType.LESS:  //"<",
@@ -237,6 +227,9 @@ namespace com.sgcombo.RpnLib
                             case RPNOperandType.NOT:  //"!",
                                 a1 = Convert.ToBoolean(al.Pop());
                                 r = (!a1);
+#if DEBUG
+                                Console.WriteLine($" !{a1} = {r}");
+#endif
                                 break;
 
                         }
@@ -245,19 +238,10 @@ namespace com.sgcombo.RpnLib
                 }
                 i++;
             }
-            f = (m, n) =>
-            {
-                double res = funcs[0](m, n);
-                for (int k = 1; k < funcs.Count; k++)
-                {
-                    res = funcs[k](res, variables[k+1]);   
-                }
-                
-                return res;
-            };
+
             while (x < al.Count) { ret = al.Pop(); }
 
-            return f;
+            return ret;
         }
 
         public void AddVar(string key, double num)
