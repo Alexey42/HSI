@@ -14,6 +14,7 @@ namespace HSI
         public int[,] data;
         public double coverPercentage;
         public int coverPixels;
+        public long coverMetres;
 
         public Model()
         {

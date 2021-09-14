@@ -34,7 +34,7 @@ using com.sgcombo.RpnLib;
 namespace HSI
 {
 
-public partial class MainWindow : System.Windows.Window
+    public partial class MainWindow : System.Windows.Window
     {
         Bitmap bitmap;
         byte[] bitmapBytes;
@@ -71,7 +71,7 @@ public partial class MainWindow : System.Windows.Window
 
             scr_img_scale.ScaleX = 0.05;
             scr_img_scale.ScaleY = 0.05;
-            backgroundWorker.RunWorkerAsync("AddImage");                      
+            backgroundWorker.RunWorkerAsync("AddImage");
         }
 
         byte[] AddImage()
@@ -99,7 +99,7 @@ public partial class MainWindow : System.Windows.Window
             Parallel.For(0, numOfBands, (i) => {
                 bands[i].CopyPixels(pixelArrays[i], stride, 0);
                 progress++;
-                backgroundWorker.ReportProgress(progress*30);               
+                backgroundWorker.ReportProgress(progress * 30);
             });
             //byte[] tiffArray = System.IO.File.ReadAllBytes(imagePath1);     
             //System.IO.File.WriteAllBytes(ofd.InitialDirectory + "\\TiffFile.tif", tiffArray);
@@ -107,10 +107,10 @@ public partial class MainWindow : System.Windows.Window
             bytesPerPixel = 6;
             stride = width * bytesPerPixel;
             arrayLength = stride * height;
-            if (!bitmapBytes.Any())
+            //if (!bitmapBytes.Any())
                 bitmapBytes = new byte[arrayLength];
 
-            for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i+=2)
+            for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i += 2)
             {
                 int index1 = i / 2 * bytesPerPixel;
 
@@ -129,7 +129,7 @@ public partial class MainWindow : System.Windows.Window
         }
 
         BitmapSource BandToBitmap_TIF(string path)
-        {           
+        {
             FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
             TiffBitmapDecoder decoder = new TiffBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
             return decoder.Frames[0];
@@ -160,7 +160,7 @@ public partial class MainWindow : System.Windows.Window
                 encoder.Frames.Add(BitmapFrame.Create(result));
                 encoder.Compression = TiffCompressOption.None;
                 encoder.Save(str);
-               
+
                 bitmap = new Bitmap(str);
             }
 
@@ -175,9 +175,10 @@ public partial class MainWindow : System.Windows.Window
                 for (int i = 0; i < models.Count; i++)
                 {
                     totalPercentage += models[i].coverPercentage;
-                    str.WriteLine(i+1 + ". " + models[i].name + ": " + models[i].coverPercentage + "% -> " + models[i].coverPixels + " pieces");
+                    str.WriteLine(i + 1 + ". " + models[i].name + ": " + models[i].coverPercentage + "% -> " +
+                        models[i].coverPixels + " pieces" + " -> " + models[i].coverMetres + "m"); // !брать разрешение из файла
                 }
-                str.WriteLine("Total: " + totalPercentage + "%");
+                str.WriteLine("\n Total: " + totalPercentage + "%");
             }
         }
 
@@ -194,7 +195,7 @@ public partial class MainWindow : System.Windows.Window
             model.userColor = System.Windows.Media.Color.FromRgb(usersRed, usersGreen, usersBlue);
             model.name = name;
             models.Add(model);
-            
+
             StringBuilder sb = new StringBuilder();
             sb.Append("<Button x:Name=\"" + name + "Button\" xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x = \"http://schemas.microsoft.com/winfx/2006/xaml\"><StackPanel Orientation=\"Vertical\" Width=\"120\" Height=\"60\">" +
                         "<Label x:Name = \"" + name + "Name\" Padding=\"15 0\" Content = \"name\" Width = \"120\" RenderTransformOrigin = \"0.5,0.5\" Height = \"20\" FontSize = \"16\" />" +
@@ -204,7 +205,7 @@ public partial class MainWindow : System.Windows.Window
             Button button = (Button)XamlReader.Parse(sb.ToString());
             button.Click += DeleteModel;
             modelsPanel.Children.Add(button);
-            var t = name + "Name";          
+            var t = name + "Name";
             var btn = FindName("btn");
             var lbl = (Label)button.FindName(t);
             lbl.Content = name;
@@ -214,9 +215,9 @@ public partial class MainWindow : System.Windows.Window
             lbl.Background = new SolidColorBrush(model.userColor);
 
             t = name + "Color";
-            lbl = (Label)button.FindName(t);           
+            lbl = (Label)button.FindName(t);
             lbl.Background = new SolidColorBrush(model.color);
-            
+
         }
 
         void DeleteModel(object sender, RoutedEventArgs e)
@@ -224,7 +225,7 @@ public partial class MainWindow : System.Windows.Window
             var ui = (UIElement)sender;
             var elem = (Button)sender;
             models.Remove(models.Find((x) => { return x.name + "Button" == elem.Name; }));
-            modelsPanel.Children.Remove(ui);           
+            modelsPanel.Children.Remove(ui);
         }
 
         byte[] ClassifyBarycentric()
@@ -292,11 +293,12 @@ public partial class MainWindow : System.Windows.Window
             for (int i = 0; i < models.Count; i++)
             {
                 models[i].coverPixels = coverCount[i];
+                models[i].coverMetres = coverCount[i] * 900;
                 models[i].coverPercentage = coverCount[i] * 100d / (bitmapBytes.Length / 6d);
             }
 
             imageInfo.processedBytes = bitmapBytes;
-            
+
             return bitmapBytes;
         }
 
@@ -314,7 +316,7 @@ public partial class MainWindow : System.Windows.Window
             ofd.InitialDirectory = "D:\\HSI_курсовая\\LC08_L2SP_175020_20201002_20201007_02_T1";
             if (ofd.ShowDialog() == true)
             {
-                
+
             }
         }
 
@@ -336,10 +338,10 @@ public partial class MainWindow : System.Windows.Window
                 var tt = (TranslateTransform)((TransformGroup)rect.RenderTransform)
                     .Children.First(tr => tr is TranslateTransform);
                 tt.X = x;
-                tt.Y = y;               
+                tt.Y = y;
             }
         }
-       
+
         private void scr_img_MouseMove(object sender, MouseEventArgs e)
         {
             if (makingWrapper)
@@ -398,7 +400,8 @@ public partial class MainWindow : System.Windows.Window
                 int[] maxR = { 0, 0, 0 }, maxG = { 0, 0, 0 }, maxB = { 0, 0, 0 };
                 long totalR = 0, totalG = 0, totalB = 0;
 
-                for (int k = 0; k < wrapedY; k++) {
+                for (int k = 0; k < wrapedY; k++)
+                {
                     int start = (wrapedArea[0] + (wrapedArea[1] + k) * bitmap.Width) * 6;
                     for (int i = start + 1; i < start + wrapedX * 6; i += 2)
                     {
@@ -406,7 +409,7 @@ public partial class MainWindow : System.Windows.Window
                         c++;
                     }
                 }
-                
+
                 for (int i = 0; i < c - 3; i += 3)
                 {
                     totalR += wrapedBytes[i];
@@ -447,7 +450,7 @@ public partial class MainWindow : System.Windows.Window
                     SetModel(maxR, maxG, maxB, dialog.Red, dialog.Green, dialog.Blue, dialog.ModelName.Replace(" ", "_"));
                 }
                 else
-                    return;           
+                    return;
             }
         }
 
@@ -455,7 +458,7 @@ public partial class MainWindow : System.Windows.Window
         {
             classify_btn.IsEnabled = false;
             backgroundWorker.RunWorkerAsync("ClassifyBarycentric");
-                     
+
         }
 
         private void setModel_btn_Click(object sender, RoutedEventArgs e)
@@ -479,7 +482,7 @@ public partial class MainWindow : System.Windows.Window
 
         private void GetStatistic_btn(object sender, RoutedEventArgs e)
         {
-            
+
         }
 
         private void BackgroundWorker_DoWork(object sender, DoWorkEventArgs e)
@@ -490,7 +493,7 @@ public partial class MainWindow : System.Windows.Window
             {
                 case "ClassifyBarycentric":
                     res = new Tuple<string, byte[]>("ClassifyBarycentric", ClassifyBarycentric());
-                    e.Result = res;                   
+                    e.Result = res;
                     break;
                 case "AddImage":
                     res = new Tuple<string, byte[]>("AddImage", AddImage());
@@ -514,7 +517,7 @@ public partial class MainWindow : System.Windows.Window
                     scr_img.Source = SaveImage("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\2.tif", imageInfo.width, imageInfo.height, imageInfo.dpi, imageInfo.dpi, PixelFormats.Rgb48, res.Item2, 6 * imageInfo.width);
                     classify_btn.IsEnabled = true;
                     break;
-                case "AddImage":                  
+                case "AddImage":
                     scr_img.Source = SaveImage("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\1.tif", imageInfo.width, imageInfo.height, imageInfo.dpi, imageInfo.dpi, PixelFormats.Rgb48, res.Item2, imageInfo.stride);
                     addImage_btn.IsEnabled = true;
                     break;
@@ -523,8 +526,8 @@ public partial class MainWindow : System.Windows.Window
                     calcRaster_btn.IsEnabled = true;
                     break;
             }
-            
-            
+
+
         }
 
         private void BackgroundWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
@@ -589,13 +592,13 @@ public partial class MainWindow : System.Windows.Window
             Stopwatch sw = new Stopwatch();
             sw.Start();
             //Parallel.For(0, arrayLength * 2 / bytesPerPixel - bytesPerPixel, (i) =>
-            for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i++)
+            /*for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i++)
             {
                 if (pixelArrays[0][i] + pixelArrays[1][i] + pixelArrays[2][i] != 0)
                 {
                     int index1 = i / 2 * bytesPerPixel;
-                    List<RPNArguments> arguments = new List<RPNArguments>() { 
-                        new RPNArguments("x", pixelArrays[0][i]), 
+                    List<RPNArguments> arguments = new List<RPNArguments>() {
+                        new RPNArguments("x", pixelArrays[0][i]),
                         new RPNArguments("y", pixelArrays[1][i]),
                         new RPNArguments("z", pixelArrays[2][i]) };
                     double temp = (double)comp.Calculate(arguments);
@@ -603,14 +606,14 @@ public partial class MainWindow : System.Windows.Window
                     bitmapBytes[index1 + 3] = (byte)((1 - temp) * 200);
                     bitmapBytes[index1 + 5] = 0;//(byte)Math.Abs(temp * 200);
                 }
-                
+
                 progress++;
                 if (progress % ((arrayLength * 2 / bytesPerPixel - bytesPerPixel) / 100) == 0)
                     backgroundWorker.ReportProgress(progress / ((arrayLength * 2 / bytesPerPixel - bytesPerPixel) / 100));
-            }//);
+            }*///);
             sw.Stop();
             var time = sw.Elapsed.TotalSeconds;
-            /*for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i++)
+            for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i++)
             {
                 if (pixelArrays[0][i] + pixelArrays[1][i] == 0)
                     continue;
@@ -619,11 +622,14 @@ public partial class MainWindow : System.Windows.Window
                 double m = pixelArrays[0][i];
                 double n = pixelArrays[1][i];              
                 double temp = (m - n) / (m + n);
+                bitmapBytes[index1 + 1] = (byte)((1 + temp) * 200);
+                bitmapBytes[index1 + 3] = (byte)((1 - temp) * 200);
+                bitmapBytes[index1 + 5] = 0;//(byte)Math.Abs(temp * 200);
 
-                result[index1 + 1] = (byte)((1 + temp) * 200);
-                result[index1 + 3] = (byte)((1 - temp) * 200);
-                result[index1 + 5] = 0;//(byte)Math.Abs(temp * 200);
-            }*/
+                progress++;
+                if (progress % ((arrayLength * 2 / bytesPerPixel - bytesPerPixel) / 100) == 0)
+                    backgroundWorker.ReportProgress(progress / ((arrayLength * 2 / bytesPerPixel - bytesPerPixel) / 100));
+            }
 
             backgroundWorker.ReportProgress(100);
             imageInfo = new ImageInfo(bitmapBytes, width, height, dpi, bytesPerPixel, stride);
