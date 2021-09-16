@@ -30,6 +30,7 @@ using System.Diagnostics;
 using System.ComponentModel;
 using System.Windows.Markup;
 using com.sgcombo.RpnLib;
+using HSI.SatelliteInfo;
 
 namespace HSI
 {
@@ -45,6 +46,7 @@ namespace HSI
         List<Model> models;
         BackgroundWorker backgroundWorker;
         string Formula = "";
+        Satellite sat;
 
         public MainWindow()
         {
@@ -65,6 +67,7 @@ namespace HSI
                 imageInfo.bandPaths = dialog.BandPaths;
                 imageInfo.path = dialog.path;
                 addImage_btn.IsEnabled = false;
+                sat = dialog.sat;
             }
             else
                 return;
@@ -176,7 +179,7 @@ namespace HSI
                 {
                     totalPercentage += models[i].coverPercentage;
                     str.WriteLine(i + 1 + ". " + models[i].name + ": " + models[i].coverPercentage + "% -> " +
-                        models[i].coverPixels + " pieces" + " -> " + models[i].coverMetres + "m"); // !брать разрешение из файла
+                        models[i].coverPixels + " pieces" + " -> " + models[i].coverMetres + "m");
                 }
                 str.WriteLine("\n Total: " + totalPercentage + "%");
             }
@@ -230,6 +233,8 @@ namespace HSI
 
         byte[] ClassifyBarycentric()
         {
+            if (models.Count < 1) return null;
+
             int[] coverCount = new int[models.Count];
             /*int X1 = maxR[0], Y1 = maxR[1], Z1 = maxR[2];
             int X2 = maxG[0], Y2 = maxG[1], Z2 = maxG[2];
@@ -290,10 +295,11 @@ namespace HSI
             });
             backgroundWorker.ReportProgress(100);
 
+            var resolution = sat.GetResolution();
             for (int i = 0; i < models.Count; i++)
             {
                 models[i].coverPixels = coverCount[i];
-                models[i].coverMetres = coverCount[i] * 900;
+                models[i].coverMetres = Convert.ToInt64(coverCount[i] * resolution * resolution);
                 models[i].coverPercentage = coverCount[i] * 100d / (bitmapBytes.Length / 6d);
             }
 
@@ -544,6 +550,7 @@ namespace HSI
                 imageInfo.path = dialog.path;
                 calcRaster_btn.IsEnabled = false;
                 Formula = dialog.Formula;
+                sat = dialog.sat;
             }
             else
                 return;

@@ -7,19 +7,23 @@
         mc:Ignorable="d"
         Title="ImageAdding" Height="250" Width="400" WindowStartupLocation="CenterScreen">
     <Grid>
-        <ListBox x:Name="cam" HorizontalAlignment="Left" Height="101" Margin="12,35,0,0" VerticalAlignment="Top" Width="113" SelectedIndex="0">
+        <ListBox x:Name="cam" SelectionChanged="cam_SelectionChanged" HorizontalAlignment="Left" Height="101" Margin="12,35,0,0" VerticalAlignment="Top" Width="113" SelectedIndex="0">
             <ListBoxItem Content="Landsat 8"></ListBoxItem>
+            <ListBoxItem Content="Landsat 7"></ListBoxItem>
         </ListBox>
         <Label Content="Выберите камеру" HorizontalAlignment="Left" Margin="12,9,0,0" VerticalAlignment="Top" Width="113"/>
-        <Label Content="Каналы" HorizontalAlignment="Left" Margin="172,9,0,0" VerticalAlignment="Top" Width="57"/>
-        <TextBox x:Name="ch1" HorizontalAlignment="Left" Height="23" Margin="138,35,0,0" TextWrapping="Wrap" Text="5" VerticalAlignment="Top" Width="29"/>
-        <TextBox x:Name="ch2" HorizontalAlignment="Left" Height="23" Margin="182,35,0,0" TextWrapping="Wrap" Text="6" VerticalAlignment="Top" Width="30"/>
-        <TextBox x:Name="ch3" HorizontalAlignment="Left" Height="23" Margin="229,35,0,0" TextWrapping="Wrap" Text="4" VerticalAlignment="Top" Width="29"/>
+        <Label Content="Каналы" HorizontalAlignment="Left" Margin="238,9,0,0" VerticalAlignment="Top" Width="57"/>
+        <TextBox x:Name="ch1" TextChanged="ch1_TextChanged" HorizontalAlignment="Left" Height="23" Margin="168,58,0,0" TextWrapping="Wrap" Text="5" VerticalAlignment="Top" Width="40" TextAlignment="Center"/>
+        <TextBox x:Name="ch2" TextChanged="ch1_TextChanged" HorizontalAlignment="Left" Height="23" Margin="249,58,0,0" TextWrapping="Wrap" Text="6" VerticalAlignment="Top" Width="40" TextAlignment="Center"/>
+        <TextBox x:Name="ch3" TextChanged="ch1_TextChanged" HorizontalAlignment="Left" Height="23" Margin="332,58,0,0" TextWrapping="Wrap" Text="4" VerticalAlignment="Top" Width="40" TextAlignment="Center"/>
         <Button Content="Ок" IsDefault="True" Click="Accept_Click" HorizontalAlignment="Left" Margin="153,189,0,0" VerticalAlignment="Top" Width="75"/>
         <Button Content="Выбрать папку" Click="ChooseDirectory_Click" HorizontalAlignment="Left" Margin="10,158,0,0" VerticalAlignment="Top" Width="99"/>
         <Label x:Name="chosenDirectory_lbl" HorizontalAlignment="Left" Margin="126,155,0,0" VerticalAlignment="Top" Width="256" Height="29"/>
-        <Button x:Name="ch1_btn" Click="channel_btn_Click" Content="..." HorizontalAlignment="Left" Margin="138,63,0,0" VerticalAlignment="Top" Width="29" Height="19"/>
-        <Button x:Name="ch2_btn" Click="channel_btn_Click" Content="..." HorizontalAlignment="Left" Margin="183,63,0,0" VerticalAlignment="Top" Width="29" Height="19"/>
-        <Button x:Name="ch3_btn" Click="channel_btn_Click" Content="..." HorizontalAlignment="Left" Margin="229,63,0,0" VerticalAlignment="Top" Width="29" Height="19"/>
+        <Button x:Name="ch1_btn" Click="channel_btn_Click" Content="Выбрать" HorizontalAlignment="Left" Margin="158,86,0,0" VerticalAlignment="Top" Width="60" Height="19"/>
+        <Button x:Name="ch2_btn" Click="channel_btn_Click" Content="Выбрать" HorizontalAlignment="Left" Margin="240,86,0,0" VerticalAlignment="Top" Width="60" Height="19"/>
+        <Button x:Name="ch3_btn" Click="channel_btn_Click" Content="Выбрать" HorizontalAlignment="Left" Margin="322,86,0,0" VerticalAlignment="Top" Width="60" Height="19"/>
+        <Label x:Name="ch1_lbl" Content="" HorizontalAlignment="Left" Margin="168,32,0,0" VerticalAlignment="Top" Width="50"/>
+        <Label x:Name="ch2_lbl" Content="" HorizontalAlignment="Left" Margin="249,32,0,0" VerticalAlignment="Top" Width="50"/>
+        <Label x:Name="ch3_lbl" Content="" HorizontalAlignment="Left" Margin="332,32,0,0" VerticalAlignment="Top" Width="50"/>
     </Grid>
 </Window>

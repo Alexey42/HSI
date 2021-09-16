@@ -149,6 +149,8 @@
     <Compile Include="RPN\RPNToken.cs" />
     <Compile Include="RPN\RPNTokenType.cs" />
     <Compile Include="RPN\RPNUtils.cs" />
+    <Compile Include="SatelliteInfo\Landsat8.cs" />
+    <Compile Include="SatelliteInfo\Satellite.cs" />
     <Compile Include="VectorOperations.cs" />
     <Compile Include="PanAndZoom.cs" />
     <Compile Include="Pixels\IPixel.cs" />

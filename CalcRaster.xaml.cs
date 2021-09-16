@@ -14,6 +14,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using Ookii.Dialogs.Wpf;
+using HSI.SatelliteInfo;
 
 namespace HSI
 {
@@ -27,6 +28,7 @@ namespace HSI
         public string Camera;
         public string Formula;
         private VistaFolderBrowserDialog openFileDialog;
+        public Satellite sat;
 
         public CalcRaster()
         {
@@ -37,7 +39,6 @@ namespace HSI
         {
             ListBoxItem l = (ListBoxItem)cam.SelectedItem;
             Camera = l.Content.ToString();
-            Formula = formula.Text;
             switch (Camera)
             {
                 case "Landsat 8":
@@ -45,6 +46,17 @@ namespace HSI
                     break;
             }
             this.DialogResult = true;
+        }
+
+        private void cam_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ListBoxItem item = (sender as ListBox).SelectedItem as ListBoxItem;
+            switch (item.Content)
+            {
+                case "Landsat 8":
+                    sat = new Landsat8();
+                    break;
+            }
         }
 
         private void ChooseDirectory_Click(object sender, RoutedEventArgs e)
@@ -57,30 +69,32 @@ namespace HSI
                 openFileDialog = ofd;
                 path = ofd.SelectedPath;
                 chosenDirectory_lbl.Content = path;
+                sat.SetDirectory(Directory.GetFiles(path));
             }
-            
+
         }
 
         void ParseLandsat8(VistaFolderBrowserDialog ofd)
         {
-            string infoPath;
             //var directory = Directory.GetFiles(/*ofd.FileName*/ofd.SelectedPath);
             var directory = Directory.GetFiles("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1");
-            foreach (var x in directory)
-            {
-                if (x.ToLower().EndsWith("mtl.xml")) infoPath = x;
-                if (x.ElementAt(x.Length - 5) == ch1.Text[0] && ch1.Text != "...") BandPaths[0] = x;
-                if (x.ElementAt(x.Length - 5) == ch2.Text[0] && ch2.Text != "...") BandPaths[1] = x;
-                if (x.ElementAt(x.Length - 5) == ch3.Text[0] && ch3.Text != "...") BandPaths[2] = x;
-            }
+            sat.SetDirectory(directory); // В релизе этих трёх строчек быть не должно
 
-            //XDocument xml = XDocument.Load(infoPath);
-            /*int width = (from x in xml.Root.Descendants()
-                         where x.Name == "REFLECTIVE_SAMPLES"
-                         select Convert.ToInt32(x.Value)).First();
-            int height = (from x in xml.Root.Descendants()
-                          where x.Name == "REFLECTIVE_LINES"
-                          select Convert.ToInt32(x.Value)).First();*/
+            if (ch1.Text != "...")
+            {
+                BandPaths[0] = sat.FindBandByInt(int.Parse(ch1.Text));
+                ch1_lbl.Content = sat.GetBandNameByInt(int.Parse(ch1.Text));
+            }
+            if (ch2.Text != "...")
+            {
+                BandPaths[1] = sat.FindBandByInt(int.Parse(ch2.Text));
+                ch2_lbl.Content = sat.GetBandNameByInt(int.Parse(ch2.Text));
+            }
+            if (ch3.Text != "...")
+            {
+                BandPaths[2] = sat.FindBandByInt(int.Parse(ch3.Text));
+                ch3_lbl.Content = sat.GetBandNameByInt(int.Parse(ch3.Text));
+            }
         }
 
         private void channel_btn_Click(object sender, RoutedEventArgs e)
@@ -97,17 +111,42 @@ namespace HSI
             if (button.Name == "ch1_btn")
             {
                 BandPaths[0] = file;
+                ch1_lbl.Content = sat.GetBandNameByFilename(file);
                 ch1.Text = "...";
             }
             else if (button.Name == "ch2_btn")
             {
                 BandPaths[1] = file;
+                ch2_lbl.Content = sat.GetBandNameByFilename(file);
                 ch2.Text = "...";
             }
             else if (button.Name == "ch3_btn")
             {
                 BandPaths[2] = file;
+                ch3_lbl.Content = sat.GetBandNameByFilename(file);
                 ch3.Text = "...";
+            }
+        }
+
+        private void ch1_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (ch1_lbl == null || ch2_lbl == null || ch3_lbl == null) return;
+            var ch = (TextBox)sender;
+            if (ch.Text == "...") return;
+            int res = 0;
+            int.TryParse(ch.Text, out res);
+            string name = sat.GetBandNameByInt(res);
+            switch (ch.Name)
+            {
+                case "ch1":
+                    ch1_lbl.Content = name;
+                    break;
+                case "ch2":
+                    ch2_lbl.Content = name;
+                    break;
+                case "ch3":
+                    ch3_lbl.Content = name;
+                    break;
             }
         }
 
