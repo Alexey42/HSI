@@ -125,6 +125,7 @@
     <Compile Include="CalcRaster.xaml.cs">
       <DependentUpon>CalcRaster.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Histogram.cs" />
     <Compile Include="ImageAdding.xaml.cs">
       <DependentUpon>ImageAdding.xaml</DependentUpon>
     </Compile>

@@ -32,6 +32,7 @@ using System.Windows.Markup;
 using com.sgcombo.RpnLib;
 using HSI.SatelliteInfo;
 
+
 namespace HSI
 {
 
@@ -66,6 +67,9 @@ namespace HSI
             {
                 imageInfo.bandPaths = dialog.BandPaths;
                 imageInfo.path = dialog.path;
+                imageInfo.bandNames[0] = (string)dialog.ch1_lbl.Content;
+                imageInfo.bandNames[1] = (string)dialog.ch2_lbl.Content;
+                imageInfo.bandNames[2] = (string)dialog.ch3_lbl.Content;
                 addImage_btn.IsEnabled = false;
                 sat = dialog.sat;
             }
@@ -79,7 +83,6 @@ namespace HSI
 
         byte[] AddImage()
         {
-            int progress = 0;
             int numOfBands = 3;
             BitmapSource[] bands = new BitmapSource[numOfBands];
 
@@ -93,7 +96,7 @@ namespace HSI
             int bytesPerPixel = (bands[0].Format.BitsPerPixel + 7) / 8;
             int stride = width * bytesPerPixel;
             int arrayLength = stride * height;
-            backgroundWorker.ReportProgress(5);
+            backgroundWorker.ReportProgress(10);
 
             List<byte[]> pixelArrays = new List<byte[]>();
             for (int i = 0; i < numOfBands; i++)
@@ -101,32 +104,48 @@ namespace HSI
 
             Parallel.For(0, numOfBands, (i) => {
                 bands[i].CopyPixels(pixelArrays[i], stride, 0);
-                progress++;
-                backgroundWorker.ReportProgress(progress * 30);
             });
+            backgroundWorker.ReportProgress(30);
             //byte[] tiffArray = System.IO.File.ReadAllBytes(imagePath1);     
             //System.IO.File.WriteAllBytes(ofd.InitialDirectory + "\\TiffFile.tif", tiffArray);
 
             bytesPerPixel = 6;
             stride = width * bytesPerPixel;
             arrayLength = stride * height;
-            //if (!bitmapBytes.Any())
+            if (bitmapBytes == null)
                 bitmapBytes = new byte[arrayLength];
 
             for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i += 2)
             {
                 int index1 = i / 2 * bytesPerPixel;
 
-                //bitmapBytes[index1] = (byte)(pixelArrays[0][i] * 2.2);
-                bitmapBytes[index1 + 1] = (byte)(pixelArrays[0][i + 1] * 2.2);
-                //bitmapBytes[index1 + 2] = (byte)(pixelArrays[1][i] * 2.2);
-                bitmapBytes[index1 + 3] = (byte)(pixelArrays[1][i + 1] * 2.2);
-                //bitmapBytes[index1 + 4] = (byte)(pixelArrays[2][i] * 2.2);
-                bitmapBytes[index1 + 5] = (byte)(pixelArrays[2][i + 1] * 2.2);
+                if (pixelArrays[0][i + 1] > 0)
+                {
+                    imageInfo.hist1[(byte)(pixelArrays[0][i + 1] * 2.2)]++;
+                    bitmapBytes[index1 + 1] = (byte)(pixelArrays[0][i + 1] * 2.2);
+                }
+                if (pixelArrays[1][i + 1] > 0)
+                {
+                    imageInfo.hist2[(byte)(pixelArrays[1][i + 1] * 2.2)]++;
+                    bitmapBytes[index1 + 3] = (byte)(pixelArrays[1][i + 1] * 2.2);
+                }
+                if (pixelArrays[2][i + 1] > 0)
+                {
+                    imageInfo.hist3[(byte)(pixelArrays[2][i + 1] * 2.2)]++;
+                    bitmapBytes[index1 + 5] = (byte)(pixelArrays[2][i + 1] * 2.2);
+                }
             }
+            backgroundWorker.ReportProgress(70);
+
+            Histogram.Make(256, 300, imageInfo.hist1, Histogram.ColorFromBandName(imageInfo.bandNames[0]))
+                .Save("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\Hist" + imageInfo.bandNames[0] + ".jpeg");
+            Histogram.Make(256, 300, imageInfo.hist2, Histogram.ColorFromBandName(imageInfo.bandNames[1]))
+                .Save("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\Hist" + imageInfo.bandNames[1] + ".jpeg");
+            Histogram.Make(256, 300, imageInfo.hist3, Histogram.ColorFromBandName(imageInfo.bandNames[2]))
+                .Save("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\Hist" + imageInfo.bandNames[2] + ".jpeg");
 
             backgroundWorker.ReportProgress(100);
-            imageInfo = new ImageInfo(bitmapBytes, width, height, dpi, bytesPerPixel, stride);
+            imageInfo.SetValues(bitmapBytes, width, height, dpi, bytesPerPixel, stride);
 
             return bitmapBytes;
         }
@@ -145,26 +164,26 @@ namespace HSI
             return System.Windows.Media.Color.FromRgb(randomBytes[0], randomBytes[1], randomBytes[2]);
         }
 
-        BitmapSource SaveImage(string path, int width, int height, double dpiX, double dpiY, System.Windows.Media.PixelFormat format, byte[] pixels, int stride)
+        BitmapSource SaveImage(bool visualize, string path, int width, int height, double dpiX, double dpiY, System.Windows.Media.PixelFormat format, byte[] pixels, int stride)
         {
             BitmapSource result;
             using (FileStream str = new FileStream(path, FileMode.OpenOrCreate))
             {
-                List<System.Windows.Media.Color> colors = new List<System.Windows.Media.Color>
+                /*List<System.Windows.Media.Color> colors = new List<System.Windows.Media.Color>
                 {
                     Colors.Red,
                     Colors.Green,
                     Colors.Blue
                 };
-
-                BitmapPalette myPalette = new BitmapPalette(colors);
+                BitmapPalette myPalette = new BitmapPalette(colors);*/
                 result = BitmapSource.Create(width, height, dpiX, dpiY, format, null, pixels, stride);
                 TiffBitmapEncoder encoder = new TiffBitmapEncoder();
                 encoder.Frames.Add(BitmapFrame.Create(result));
                 encoder.Compression = TiffCompressOption.None;
                 encoder.Save(str);
 
-                bitmap = new Bitmap(str);
+                if (visualize)
+                    bitmap = new Bitmap(str);
             }
 
             return result;
@@ -520,15 +539,15 @@ namespace HSI
             {
                 case "ClassifyBarycentric":
                     PrepareAndSaveStats("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\3.txt");
-                    scr_img.Source = SaveImage("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\2.tif", imageInfo.width, imageInfo.height, imageInfo.dpi, imageInfo.dpi, PixelFormats.Rgb48, res.Item2, 6 * imageInfo.width);
+                    scr_img.Source = SaveImage(true, "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\2.tif", imageInfo.width, imageInfo.height, imageInfo.dpi, imageInfo.dpi, PixelFormats.Rgb48, res.Item2, 6 * imageInfo.width);
                     classify_btn.IsEnabled = true;
                     break;
                 case "AddImage":
-                    scr_img.Source = SaveImage("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\1.tif", imageInfo.width, imageInfo.height, imageInfo.dpi, imageInfo.dpi, PixelFormats.Rgb48, res.Item2, imageInfo.stride);
+                    scr_img.Source = SaveImage(true, "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\1.tif", imageInfo.width, imageInfo.height, imageInfo.dpi, imageInfo.dpi, PixelFormats.Rgb48, res.Item2, imageInfo.stride);
                     addImage_btn.IsEnabled = true;
                     break;
                 case "CalculateRaster":
-                    scr_img.Source = SaveImage("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\4.tif", imageInfo.width, imageInfo.height, imageInfo.dpi, imageInfo.dpi, PixelFormats.Rgb48, res.Item2, imageInfo.stride);
+                    scr_img.Source = SaveImage(true, "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\4.tif", imageInfo.width, imageInfo.height, imageInfo.dpi, imageInfo.dpi, PixelFormats.Rgb48, res.Item2, imageInfo.stride);
                     calcRaster_btn.IsEnabled = true;
                     break;
             }
@@ -548,6 +567,9 @@ namespace HSI
             {
                 imageInfo.bandPaths = dialog.BandPaths;
                 imageInfo.path = dialog.path;
+                imageInfo.bandNames[0] = (string)dialog.ch1_lbl.Content;
+                imageInfo.bandNames[1] = (string)dialog.ch2_lbl.Content;
+                imageInfo.bandNames[2] = (string)dialog.ch3_lbl.Content;
                 calcRaster_btn.IsEnabled = false;
                 Formula = dialog.Formula;
                 sat = dialog.sat;
@@ -593,7 +615,7 @@ namespace HSI
             Formula = Formula.Replace("Ch1", "x").Replace("Ch2", "y").Replace("Ch3", "z");
             var comp = new RPNExpression(Formula);
             var RPNString = comp.Prepare();
-            if (!bitmapBytes.Any())
+            if (bitmapBytes == null)
                 bitmapBytes = new byte[arrayLength];
 
             Stopwatch sw = new Stopwatch();
@@ -639,7 +661,7 @@ namespace HSI
             }
 
             backgroundWorker.ReportProgress(100);
-            imageInfo = new ImageInfo(bitmapBytes, width, height, dpi, bytesPerPixel, stride);
+            imageInfo.SetValues(bitmapBytes, width, height, dpi, bytesPerPixel, stride);
 
             return bitmapBytes;
         }

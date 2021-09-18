@@ -23,7 +23,7 @@ namespace HSI
     /// </summary>
     public partial class CalcRaster : Window
     {
-        public string path;
+        public string path = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1"; // В релизе оставить ""
         public string[] BandPaths = new string[3];
         public string Camera;
         public string Formula;
@@ -39,6 +39,7 @@ namespace HSI
         {
             ListBoxItem l = (ListBoxItem)cam.SelectedItem;
             Camera = l.Content.ToString();
+            Formula = formula.Text;
             switch (Camera)
             {
                 case "Landsat 8":
@@ -83,17 +84,17 @@ namespace HSI
             if (ch1.Text != "...")
             {
                 BandPaths[0] = sat.FindBandByInt(int.Parse(ch1.Text));
-                ch1_lbl.Content = sat.GetBandNameByInt(int.Parse(ch1.Text));
+                ch1_lbl.Content = sat.GetBandNameByInt(int.Parse(ch1.Text)); // В релизе убрать
             }
             if (ch2.Text != "...")
             {
                 BandPaths[1] = sat.FindBandByInt(int.Parse(ch2.Text));
-                ch2_lbl.Content = sat.GetBandNameByInt(int.Parse(ch2.Text));
+                ch2_lbl.Content = sat.GetBandNameByInt(int.Parse(ch2.Text)); // В релизе убрать
             }
             if (ch3.Text != "...")
             {
                 BandPaths[2] = sat.FindBandByInt(int.Parse(ch3.Text));
-                ch3_lbl.Content = sat.GetBandNameByInt(int.Parse(ch3.Text));
+                ch3_lbl.Content = sat.GetBandNameByInt(int.Parse(ch3.Text)); // В релизе убрать
             }
         }
 
@@ -106,7 +107,10 @@ namespace HSI
                 ofd.InitialDirectory = path;
 
             if (ofd.ShowDialog() == true)
+            {
                 file = ofd.FileName;
+                path = file.Substring(0, file.LastIndexOf('\\'));
+            }
 
             if (button.Name == "ch1_btn")
             {
@@ -156,7 +160,7 @@ namespace HSI
             string op = (string)button.Content;
 
             formula.Text += op + " ";
-            
+
         }
     }
 }

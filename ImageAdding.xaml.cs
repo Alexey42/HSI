@@ -23,7 +23,7 @@ namespace HSI
     /// </summary>
     public partial class ImageAdding : Window
     {
-        public string path = "";
+        public string path = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1"; // В релизе оставить ""
         public string[] BandPaths = new string[3];
         public string Camera;
         private VistaFolderBrowserDialog openFileDialog;
@@ -82,25 +82,16 @@ namespace HSI
             if (ch1.Text != "...")
             {
                 BandPaths[0] = sat.FindBandByInt(int.Parse(ch1.Text));
-                ch1_lbl.Content = sat.GetBandNameByInt(int.Parse(ch1.Text));
+                ch1_lbl.Content = sat.GetBandNameByInt(int.Parse(ch1.Text)); // В релизе убрать
             }
             if (ch2.Text != "...") { 
                 BandPaths[1] = sat.FindBandByInt(int.Parse(ch2.Text));
-                ch2_lbl.Content = sat.GetBandNameByInt(int.Parse(ch2.Text));
+                ch2_lbl.Content = sat.GetBandNameByInt(int.Parse(ch2.Text)); // В релизе убрать
             }
             if (ch3.Text != "...") { 
                 BandPaths[2] = sat.FindBandByInt(int.Parse(ch3.Text));
-                ch3_lbl.Content = sat.GetBandNameByInt(int.Parse(ch3.Text));
+                ch3_lbl.Content = sat.GetBandNameByInt(int.Parse(ch3.Text)); // В релизе убрать
             }
-
-
-            //XDocument xml = XDocument.Load(infoPath);
-            /*int width = (from x in xml.Root.Descendants()
-                         where x.Name == "REFLECTIVE_SAMPLES"
-                         select Convert.ToInt32(x.Value)).First();
-            int height = (from x in xml.Root.Descendants()
-                          where x.Name == "REFLECTIVE_LINES"
-                          select Convert.ToInt32(x.Value)).First();*/
         }
 
         private void channel_btn_Click(object sender, RoutedEventArgs e)
@@ -112,7 +103,10 @@ namespace HSI
                 ofd.InitialDirectory = path;
 
             if (ofd.ShowDialog() == true)
+            {
                 file = ofd.FileName;
+                path = file.Substring(0, file.LastIndexOf('\\'));
+            }
 
             if (button.Name == "ch1_btn")
             {
