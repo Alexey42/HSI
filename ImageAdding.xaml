@@ -9,7 +9,7 @@
     <Grid>
         <ListBox x:Name="cam" SelectionChanged="cam_SelectionChanged" HorizontalAlignment="Left" Height="101" Margin="12,35,0,0" VerticalAlignment="Top" Width="113" SelectedIndex="0">
             <ListBoxItem Content="Landsat 8"></ListBoxItem>
-            <ListBoxItem Content="Landsat 7"></ListBoxItem>
+            <ListBoxItem Content="Sentinel-2"></ListBoxItem>
         </ListBox>
         <Label Content="Выберите камеру" HorizontalAlignment="Left" Margin="12,9,0,0" VerticalAlignment="Top" Width="113"/>
         <Label Content="Каналы" HorizontalAlignment="Left" Margin="238,9,0,0" VerticalAlignment="Top" Width="57"/>

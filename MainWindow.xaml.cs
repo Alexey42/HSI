@@ -105,15 +105,14 @@ namespace HSI
             Parallel.For(0, numOfBands, (i) => {
                 bands[i].CopyPixels(pixelArrays[i], stride, 0);
             });
-            backgroundWorker.ReportProgress(30);
+            backgroundWorker.ReportProgress(60);
             //byte[] tiffArray = System.IO.File.ReadAllBytes(imagePath1);     
             //System.IO.File.WriteAllBytes(ofd.InitialDirectory + "\\TiffFile.tif", tiffArray);
 
             bytesPerPixel = 6;
             stride = width * bytesPerPixel;
             arrayLength = stride * height;
-            if (bitmapBytes == null)
-                bitmapBytes = new byte[arrayLength];
+            bitmapBytes = new byte[arrayLength];
 
             for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i += 2)
             {
@@ -135,14 +134,13 @@ namespace HSI
                     bitmapBytes[index1 + 5] = (byte)(pixelArrays[2][i + 1] * 2.2);
                 }
             }
-            backgroundWorker.ReportProgress(70);
 
             Histogram.Make(256, 300, imageInfo.hist1, Histogram.ColorFromBandName(imageInfo.bandNames[0]))
-                .Save("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\Hist" + imageInfo.bandNames[0] + ".jpeg");
+                .Save("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\Hist" + imageInfo.bandNames[0] + ".jpeg", ImageFormat.Jpeg);
             Histogram.Make(256, 300, imageInfo.hist2, Histogram.ColorFromBandName(imageInfo.bandNames[1]))
-                .Save("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\Hist" + imageInfo.bandNames[1] + ".jpeg");
+                .Save("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\Hist" + imageInfo.bandNames[1] + ".jpeg", ImageFormat.Jpeg);
             Histogram.Make(256, 300, imageInfo.hist3, Histogram.ColorFromBandName(imageInfo.bandNames[2]))
-                .Save("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\Hist" + imageInfo.bandNames[2] + ".jpeg");
+                .Save("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\Hist" + imageInfo.bandNames[2] + ".jpeg", ImageFormat.Jpeg);
 
             backgroundWorker.ReportProgress(100);
             imageInfo.SetValues(bitmapBytes, width, height, dpi, bytesPerPixel, stride);
@@ -334,14 +332,37 @@ namespace HSI
             return x;
         }
 
-        private void MenuItem_Click(object sender, RoutedEventArgs e)
+        private void OpenImage_Click(object sender, RoutedEventArgs e)
         {
+            MenuItem item = (MenuItem)sender;
             OpenFileDialog ofd = new OpenFileDialog();
-            ofd.Filter = "HSI | *.tif;*.tiff";
+            string type = (string)item.Header;
+
+            if (type == ".tif")
+                ofd.Filter = "HSI | *.tif;*.tiff";
+            if (type == ".jpeg")
+                ofd.Filter = "HSI | *.jpg;*.jpeg";
+                
             ofd.InitialDirectory = "D:\\HSI_курсовая\\LC08_L2SP_175020_20201002_20201007_02_T1";
             if (ofd.ShowDialog() == true)
             {
-
+                BitmapFrame frame = null;
+                if (type == ".tif")
+                {
+                    FileStream stream = new FileStream(ofd.FileName, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    BitmapDecoder decoder = new TiffBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
+                    frame = decoder.Frames[0];
+                }
+                if (type == ".jpeg")
+                {
+                    FileStream stream = new FileStream(ofd.FileName, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    BitmapDecoder decoder = new JpegBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
+                    frame = decoder.Frames[0];
+                }
+                var stride = (int)frame.Width * (frame.Format.BitsPerPixel + 7) / 8;
+                scr_img.Source = frame;
+                bitmapBytes = new byte[(int)frame.Height * stride];
+                frame.CopyPixels(bitmapBytes, stride, 0);
             }
         }
 
@@ -604,8 +625,6 @@ namespace HSI
             Parallel.For(0, numOfBands, (i) => {
                 bands[i].CopyPixels(pixelArrays[i], stride, 0);
             });
-            //byte[] tiffArray = System.IO.File.ReadAllBytes(imagePath1);     
-            //System.IO.File.WriteAllBytes(ofd.InitialDirectory + "\\TiffFile.tif", tiffArray);
 
             bytesPerPixel = 6;
             stride = width * bytesPerPixel;
@@ -665,5 +684,20 @@ namespace HSI
 
             return bitmapBytes;
         }
+
+        private void hist_fromFile_click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+            if (imageInfo.path != "")
+                ofd.InitialDirectory = imageInfo.path;
+
+            if (ofd.ShowDialog() == true)
+            {
+                Histogram.MakeFromFile(ofd.FileName, 256, 300);
+
+            }
+            else return;
+        }
+
     }
 }
