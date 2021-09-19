@@ -11,18 +11,19 @@ namespace HSI
 {
     public static class Histogram
     {
-
         public static Bitmap Make(int width, int height, int[] data, System.Drawing.Color color)
         {
             Bitmap b = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
-            int norm = GetMax(data) / height;
+            int[] temp = new int[data.Length];
+            Array.Copy(data, temp, data.Length);
+            int norm = GetMax(temp) / height;
 
             for (int i = 0; i < width; i++)
             {
-                data[i] /= norm;
-                for (int j = 0; data[i] > 0 && j < height; j++)
+                temp[i] /= norm;
+                for (int j = 0; temp[i] > 0 && j < height; j++)
                 {
-                    data[i]--;
+                    temp[i]--;
                     b.SetPixel(i, height - 1 - j, color);
                 }
             }
@@ -122,14 +123,18 @@ namespace HSI
                 }
             }
 
-            Show(Make(res_width, res_height, h[0], System.Drawing.Color.Red), "1");
-            Show(Make(res_width, res_height, h[1], System.Drawing.Color.Green), "2");
-            Show(Make(res_width, res_height, h[2], System.Drawing.Color.Blue), "3");
+            System.Drawing.Color color = System.Drawing.Color.Red;
+            for (int i = 0; i < h.Count; i++)
+            {
+                if (i == 1) color = System.Drawing.Color.Green;
+                else if (i == 2) color = System.Drawing.Color.Blue;
+                Show(Make(res_width, res_height, h[i], color), h[i], "" + (i + 1));
+            }
         }
 
-        public static void Show(Bitmap b, string name)
+        public static void Show(Bitmap b, int[] data, string name)
         {
-            HistogramWindow win = new HistogramWindow(b, name);
+            HistogramWindow win = new HistogramWindow(b, data, name);
             win.Show();
         }
 

@@ -23,14 +23,19 @@ namespace HSI
     public partial class HistogramWindow : Window
     {
         Bitmap bitmap;
+        int[] hist;
 
-        public HistogramWindow(Bitmap b, string name)
+        public HistogramWindow(Bitmap b, int[] data, string name)
         {
             InitializeComponent();
 
             bitmap = b;
+            hist = data;
             Title = name;
+            img.Width = bitmap.Width;
+            img.Height = bitmap.Height;
             img.Source = Imaging.CreateBitmapSourceFromHBitmap(b.GetHbitmap(), IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions()); ;
+            info_lbl.Background = new SolidColorBrush(Colors.White);
         }
 
         private void save_btn_Click(object sender, RoutedEventArgs e)
@@ -49,7 +54,13 @@ namespace HSI
             UIElement element = (UIElement)sender;
             int x = (int)e.GetPosition(element).X;
             int y = (int)e.GetPosition(element).Y;
-            info_lbl.Content = x + ", " + y;
+            if (x >= bitmap.Width || x < 0 || y >= bitmap.Height || y < 0)
+                return;
+            var t = bitmap.GetPixel(x, y).Name;
+            if (bitmap.GetPixel(x, y).Name != "ff000000")
+            {
+                info_lbl.Content = x + ", " + hist[x];
+            }
         }
     }
 }
