@@ -1,4 +1,6 @@
 ﻿using Ookii.Dialogs.Wpf;
+using OpenCvSharp;
+using OpenCvSharp.WpfExtensions;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -20,12 +22,12 @@ namespace HSI
     /// <summary>
     /// Логика взаимодействия для HistogramWindow.xaml
     /// </summary>
-    public partial class HistogramWindow : Window
+    public partial class HistogramWindow : System.Windows.Window
     {
-        Bitmap bitmap;
-        int[] hist;
+        Mat bitmap;
+        Mat hist;
 
-        public HistogramWindow(Bitmap b, int[] data, string name)
+        public HistogramWindow(Mat b, Mat data, string name)
         {
             InitializeComponent();
 
@@ -34,7 +36,7 @@ namespace HSI
             Title = name;
             img.Width = bitmap.Width;
             img.Height = bitmap.Height;
-            img.Source = Imaging.CreateBitmapSourceFromHBitmap(b.GetHbitmap(), IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions()); ;
+            img.Source = BitmapSourceConverter.ToBitmapSource(b);
             info_lbl.Background = new SolidColorBrush(Colors.White);
         }
 
@@ -45,7 +47,7 @@ namespace HSI
             //ofd.SelectedPath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1";
             if (ofd.ShowDialog() == true)
             {
-                bitmap.Save(ofd.SelectedPath, System.Drawing.Imaging.ImageFormat.Jpeg);
+                Cv2.ImWrite(ofd.SelectedPath + "Hist" + Title + "png", bitmap);
             }
         }
 
@@ -56,10 +58,10 @@ namespace HSI
             int y = (int)e.GetPosition(element).Y;
             if (x >= bitmap.Width || x < 0 || y >= bitmap.Height || y < 0)
                 return;
-            var t = bitmap.GetPixel(x, y).Name;
-            if (bitmap.GetPixel(x, y).Name != "ff000000")
+            var t = bitmap.Get<float>(x, y);
+            if (t != 0)
             {
-                info_lbl.Content = x + ", " + hist[x];
+                info_lbl.Content = x + ", " + hist.Get<float>(x);
             }
         }
     }

@@ -25,6 +25,7 @@ using System.Threading;
 using System.Xml.Linq;
 using System.Runtime.InteropServices;
 using OpenCvSharp;
+using OpenCvSharp.WpfExtensions;
 using ru.lsreg.math;
 using System.Diagnostics;
 using System.ComponentModel;
@@ -32,14 +33,11 @@ using System.Windows.Markup;
 using com.sgcombo.RpnLib;
 using HSI.SatelliteInfo;
 
-
 namespace HSI
 {
 
     public partial class MainWindow : System.Windows.Window
     {
-        Bitmap bitmap;
-        byte[] bitmapBytes;
         bool makingWrapper = false;
         int[] wrapedArea;
         System.Windows.Point mouseStart;
@@ -47,7 +45,11 @@ namespace HSI
         List<Model> models;
         BackgroundWorker backgroundWorker;
         string Formula = "";
-        Satellite sat;
+        float classifyThreshold = 0;
+        public Satellite satellite;
+        string path;
+        public string[] bandPaths = new string[3];
+        public string[] bandNames = new string[3];
 
         public MainWindow()
         {
@@ -65,13 +67,14 @@ namespace HSI
             ImageAdding dialog = new ImageAdding();
             if (dialog.ShowDialog() == true)
             {
-                imageInfo.bandPaths = dialog.BandPaths;
-                imageInfo.path = dialog.path;
-                imageInfo.bandNames[0] = (string)dialog.ch1_lbl.Content;
-                imageInfo.bandNames[1] = (string)dialog.ch2_lbl.Content;
-                imageInfo.bandNames[2] = (string)dialog.ch3_lbl.Content;
+                bandPaths = dialog.BandPaths;
+                path = dialog.path;
+                bandNames[0] = (string)dialog.ch1_lbl.Content;
+                bandNames[1] = (string)dialog.ch2_lbl.Content;
+                bandNames[2] = (string)dialog.ch3_lbl.Content;
                 addImage_btn.IsEnabled = false;
-                sat = dialog.sat;
+                
+                satellite = dialog.sat;
             }
             else
                 return;
@@ -81,78 +84,33 @@ namespace HSI
             backgroundWorker.RunWorkerAsync("AddImage");
         }
 
-        byte[] AddImage()
+        Vec3b[] AddImage()
         {
-            int numOfBands = 3;
-            BitmapSource[] bands = new BitmapSource[numOfBands];
+            Mat band = null;
+            byte[][] bytes = new byte[3][];
 
-            Parallel.For(0, numOfBands, (i) => {
-                bands[i] = BandToBitmap_TIF(imageInfo.bandPaths[i]);
+            Parallel.For(0, 3, (i) => {
+                band = OpenSaveHelper.BandToBitmap(bandPaths[i]);
+                band.GetArray(out bytes[i]);
             });
 
-            double dpi = bands[0].DpiX;
-            int width = bands[0].PixelWidth;
-            int height = bands[0].PixelHeight;
-            int bytesPerPixel = (bands[0].Format.BitsPerPixel + 7) / 8;
-            int stride = width * bytesPerPixel;
-            int arrayLength = stride * height;
-            backgroundWorker.ReportProgress(10);
+            if (bytes[0].Length != bytes[1].Length || bytes[0].Length != bytes[2].Length)
+                return null;
 
-            List<byte[]> pixelArrays = new List<byte[]>();
-            for (int i = 0; i < numOfBands; i++)
-                pixelArrays.Add(new byte[arrayLength]);
+            int arrayLength = bytes[0].Length;
+            backgroundWorker.ReportProgress(50);
 
-            Parallel.For(0, numOfBands, (i) => {
-                bands[i].CopyPixels(pixelArrays[i], stride, 0);
-            });
-            backgroundWorker.ReportProgress(60);
-            //byte[] tiffArray = System.IO.File.ReadAllBytes(imagePath1);     
-            //System.IO.File.WriteAllBytes(ofd.InitialDirectory + "\\TiffFile.tif", tiffArray);
-
-            bytesPerPixel = 6;
-            stride = width * bytesPerPixel;
-            arrayLength = stride * height;
-            bitmapBytes = new byte[arrayLength];
-
-            for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i += 2)
-            {
-                int index1 = i / 2 * bytesPerPixel;
-
-                if (pixelArrays[0][i + 1] > 0)
-                {
-                    imageInfo.hist1[(byte)(pixelArrays[0][i + 1] * 2.2)]++;
-                    bitmapBytes[index1 + 1] = (byte)(pixelArrays[0][i + 1] * 2.2);
-                }
-                if (pixelArrays[1][i + 1] > 0)
-                {
-                    imageInfo.hist2[(byte)(pixelArrays[1][i + 1] * 2.2)]++;
-                    bitmapBytes[index1 + 3] = (byte)(pixelArrays[1][i + 1] * 2.2);
-                }
-                if (pixelArrays[2][i + 1] > 0)
-                {
-                    imageInfo.hist3[(byte)(pixelArrays[2][i + 1] * 2.2)]++;
-                    bitmapBytes[index1 + 5] = (byte)(pixelArrays[2][i + 1] * 2.2);
-                }
-            }
-
-            Histogram.Make(256, 300, imageInfo.hist1, Histogram.ColorFromBandName(imageInfo.bandNames[0]))
-                .Save("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\Hist" + imageInfo.bandNames[0] + ".jpeg", ImageFormat.Jpeg);
-            Histogram.Make(256, 300, imageInfo.hist2, Histogram.ColorFromBandName(imageInfo.bandNames[1]))
-                .Save("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\Hist" + imageInfo.bandNames[1] + ".jpeg", ImageFormat.Jpeg);
-            Histogram.Make(256, 300, imageInfo.hist3, Histogram.ColorFromBandName(imageInfo.bandNames[2]))
-                .Save("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\Hist" + imageInfo.bandNames[2] + ".jpeg", ImageFormat.Jpeg);
-
+            Vec3b[] vecs = new Vec3b[arrayLength];
+            for (int i = 0; i < arrayLength; i++)
+                vecs[i] = new Vec3b((byte)(bytes[2][i] * satellite.brightCoef), (byte)(bytes[1][i] * satellite.brightCoef),
+                    (byte)(bytes[0][i] * satellite.brightCoef));
+            Mat res = new Mat(band.Rows, band.Cols, MatType.CV_8UC3, vecs);
+            bytes = null;
+       
             backgroundWorker.ReportProgress(100);
-            imageInfo.SetValues(bitmapBytes, width, height, dpi, bytesPerPixel, stride);
+            imageInfo = new ImageInfo(res, satellite, path, bandPaths, bandNames);
 
-            return bitmapBytes;
-        }
-
-        BitmapSource BandToBitmap_TIF(string path)
-        {
-            FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            TiffBitmapDecoder decoder = new TiffBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
-            return decoder.Frames[0];
+            return vecs;
         }
 
         System.Windows.Media.Color GetRandomColor()
@@ -160,31 +118,6 @@ namespace HSI
             var randomBytes = new Byte[3];
             new Random().NextBytes(randomBytes);
             return System.Windows.Media.Color.FromRgb(randomBytes[0], randomBytes[1], randomBytes[2]);
-        }
-
-        BitmapSource SaveImage(bool visualize, string path, int width, int height, double dpiX, double dpiY, System.Windows.Media.PixelFormat format, byte[] pixels, int stride)
-        {
-            BitmapSource result;
-            using (FileStream str = new FileStream(path, FileMode.OpenOrCreate))
-            {
-                /*List<System.Windows.Media.Color> colors = new List<System.Windows.Media.Color>
-                {
-                    Colors.Red,
-                    Colors.Green,
-                    Colors.Blue
-                };
-                BitmapPalette myPalette = new BitmapPalette(colors);*/
-                result = BitmapSource.Create(width, height, dpiX, dpiY, format, null, pixels, stride);
-                TiffBitmapEncoder encoder = new TiffBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(result));
-                encoder.Compression = TiffCompressOption.None;
-                encoder.Save(str);
-
-                if (visualize)
-                    bitmap = new Bitmap(str);
-            }
-
-            return result;
         }
 
         void PrepareAndSaveStats(string path)
@@ -202,15 +135,15 @@ namespace HSI
             }
         }
 
-        private void SetModel(int[] maxR, int[] maxG, int[] maxB, byte usersRed, byte usersGreen, byte usersBlue, string name)
+        private void SetModel(int[] meanR, int[] meanG, int[] meanB, byte usersRed, byte usersGreen, byte usersBlue, string name)
         {
             Model model = new Model();
             model.data = new int[,] {
-                { maxR[0], maxR[1], maxR[2] },
-                { maxG[0], maxG[1], maxG[2] },
-                { maxB[0], maxB[1], maxB[2] }
+                { meanR[0], meanR[1], meanR[2] },
+                { meanG[0], meanG[1], meanG[2] },
+                { meanB[0], meanB[1], meanB[2] }
             };
-            model.color = System.Windows.Media.Color.FromRgb((byte)maxR[0], (byte)maxG[1], (byte)maxB[2]);
+            model.color = System.Windows.Media.Color.FromRgb((byte)meanR[0], (byte)meanG[1], (byte)meanB[2]);
             //model.userColor = GetRandomColor();
             model.userColor = System.Windows.Media.Color.FromRgb(usersRed, usersGreen, usersBlue);
             model.name = name;
@@ -225,17 +158,17 @@ namespace HSI
             Button button = (Button)XamlReader.Parse(sb.ToString());
             button.Click += DeleteModel;
             modelsPanel.Children.Add(button);
-            var t = name + "Name";
+            var finName = name + "Name";
             var btn = FindName("btn");
-            var lbl = (Label)button.FindName(t);
+            var lbl = (Label)button.FindName(finName);
             lbl.Content = name;
 
-            t = name + "UserColor";
-            lbl = (Label)button.FindName(t);
+            finName = name + "UserColor";
+            lbl = (Label)button.FindName(finName);
             lbl.Background = new SolidColorBrush(model.userColor);
 
-            t = name + "Color";
-            lbl = (Label)button.FindName(t);
+            finName = name + "Color";
+            lbl = (Label)button.FindName(finName);
             lbl.Background = new SolidColorBrush(model.color);
 
         }
@@ -248,81 +181,67 @@ namespace HSI
             modelsPanel.Children.Remove(ui);
         }
 
-        byte[] ClassifyBarycentric()
+        Vec3b[] ClassifyBarycentric()
         {
-            if (models.Count < 1) return null;
+            if (models.Count == 0) return null;
 
             int[] coverCount = new int[models.Count];
-            /*int X1 = maxR[0], Y1 = maxR[1], Z1 = maxR[2];
-            int X2 = maxG[0], Y2 = maxG[1], Z2 = maxG[2];
-            int X3 = maxB[0], Y3 = maxB[1], Z3 = maxB[2];*/
             List<Matrix> inverted_matrix = new List<Matrix>();
             foreach (var model in models)
             {
                 Matrix m = new Matrix(3, 3);
-                m[0, 0] = model.data[0, 0]; m[0, 1] = model.data[1, 0]; m[0, 2] = model.data[2, 0];
-                m[1, 0] = model.data[0, 1]; m[1, 1] = model.data[1, 1]; m[1, 2] = model.data[2, 1];
-                m[2, 0] = model.data[0, 2]; m[2, 1] = model.data[1, 2]; m[2, 2] = model.data[2, 2];
+                for (int i = 0; i < 3; i++)
+                    for (int j = 0; j < 3; j++)
+                        m[i, j] = model.data[j, i];
 
                 Matrix im = m.CreateInvertibleMatrix();
                 if (im == null)
                 {
-                    m[1, 0]++;
-                    m[0, 2]++;
-                    m[2, 1]++;
+                    m[1, 0]++; m[0, 2]++; m[2, 1]++;
                     im = m.CreateInvertibleMatrix();
                 }
                 inverted_matrix.Add(im);
             }
 
             int progress = 0;
-            Parallel.For(0, bitmapBytes.Length / 6, (i) =>
+            Vec3b[] array = imageInfo.GetBytes();
+            
+            Parallel.For(0, array.Length, (i) =>
             {
-                i *= 6;
-                if (i + 5 < bitmapBytes.Length)
+                if (array[i][0] != 0 || array[i][1] != 0 || array[i][2] != 0)
                 {
-                    /*int X = bitmapBytes[i + 1];
-                    int Y = bitmapBytes[i + 3];
-                    int Z = bitmapBytes[i + 5];*/
-                    if (bitmapBytes[i + 1] != 0 || bitmapBytes[i + 3] != 0 || bitmapBytes[i + 5] != 0)
-                    {
-                        Matrix r = new Matrix(3, 1);
-                        r[0, 0] = bitmapBytes[i + 1];
-                        r[1, 0] = bitmapBytes[i + 3];
-                        r[2, 0] = bitmapBytes[i + 5];
+                    Matrix r = new Matrix(3, 1);
+                    r[0, 0] = array[i][0]; r[1, 0] = array[i][1]; r[2, 0] = array[i][2];
 
-                        for (int k = 0; k < models.Count; k++)
+                    for (int k = 0; k < models.Count; k++)
+                    {
+                        Matrix res = inverted_matrix[k] * r;
+                        if (Math.Abs(res[0, 0]) < classifyThreshold && Math.Abs(res[1, 0]) < classifyThreshold 
+                            && Math.Abs(res[2, 0]) < classifyThreshold)
                         {
-                            Matrix res = inverted_matrix[k] * r;
-                            if (/*(res[0, 0] >= 0 || res[1, 0] >= 0 || res[2, 0] >= 0) &&*/
-                                (Math.Abs(res[0, 0]) < 8 && Math.Abs(res[1, 0]) < 8 && Math.Abs(res[2, 0]) < 8))
-                            {
-                                coverCount[k]++;
-                                bitmapBytes[i + 1] = models[k].userColor.R;
-                                bitmapBytes[i + 3] = models[k].userColor.G;
-                                bitmapBytes[i + 5] = models[k].userColor.B;
-                                break;
-                            }
+                            coverCount[k]++;
+                            array[i] = new Vec3b(models[k].userColor.B, models[k].userColor.G, models[k].userColor.R);
+                            break;
                         }
                     }
-                    progress++;
-                    if (progress % (bitmapBytes.Length / 600) == 0)
-                        backgroundWorker.ReportProgress(progress / (bitmapBytes.Length / 600));
                 }
+                progress++;
+                if (progress % (array.Length / 100) == 0)
+                    backgroundWorker.ReportProgress(progress / array.Length / 100);
             });
             backgroundWorker.ReportProgress(100);
-
-            var resolution = sat.GetResolution();
+            Mat mat = new Mat(imageInfo.height, imageInfo.width, MatType.CV_8UC3, array);
+            //Cv2.ImWrite("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\22.tif", mat);
+            imageInfo = new ImageInfo(mat, satellite, path, bandPaths, bandNames);
+            var resolution = imageInfo.satellite.GetResolution("");
             for (int i = 0; i < models.Count; i++)
             {
                 models[i].coverPixels = coverCount[i];
                 models[i].coverMetres = Convert.ToInt64(coverCount[i] * resolution * resolution);
-                models[i].coverPercentage = coverCount[i] * 100d / (bitmapBytes.Length / 6d);
+                models[i].coverPercentage = coverCount[i] * 100d / array.Length;
             }
 
-            imageInfo.processedBytes = bitmapBytes;
-
-            return bitmapBytes;
+            return array;
         }
 
         byte Clamp(byte x, byte min, byte max)
@@ -340,29 +259,18 @@ namespace HSI
 
             if (type == ".tif")
                 ofd.Filter = "HSI | *.tif;*.tiff";
+            if (type == ".png")
+                ofd.Filter = "HSI | *.png";
             if (type == ".jpeg")
                 ofd.Filter = "HSI | *.jpg;*.jpeg";
-                
+            if (type == ".jpeg2000")
+                ofd.Filter = "HSI | *.j2k;*.jp2;*.jpf;*.jpm;*.jpc;*.jpg2;*.j2c;*.jpx;*.mj2";
+
             ofd.InitialDirectory = "D:\\HSI_курсовая\\LC08_L2SP_175020_20201002_20201007_02_T1";
             if (ofd.ShowDialog() == true)
             {
-                BitmapFrame frame = null;
-                if (type == ".tif")
-                {
-                    FileStream stream = new FileStream(ofd.FileName, FileMode.Open, FileAccess.Read, FileShare.Read);
-                    BitmapDecoder decoder = new TiffBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
-                    frame = decoder.Frames[0];
-                }
-                if (type == ".jpeg")
-                {
-                    FileStream stream = new FileStream(ofd.FileName, FileMode.Open, FileAccess.Read, FileShare.Read);
-                    BitmapDecoder decoder = new JpegBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
-                    frame = decoder.Frames[0];
-                }
-                var stride = (int)frame.Width * (frame.Format.BitsPerPixel + 7) / 8;
-                scr_img.Source = frame;
-                bitmapBytes = new byte[(int)frame.Height * stride];
-                frame.CopyPixels(bitmapBytes, stride, 0);
+                imageInfo = new ImageInfo(Cv2.ImRead(ofd.FileName), ofd.FileName);
+                scr_img.Source = imageInfo.GetBS();
             }
         }
 
@@ -441,59 +349,38 @@ namespace HSI
                 if (wrapedSize == 0)
                     return;
 
-                byte[] wrapedBytes = new byte[wrapedSize * 3];
-                int c = 0;
-                int[] maxR = { 0, 0, 0 }, maxG = { 0, 0, 0 }, maxB = { 0, 0, 0 };
-                long totalR = 0, totalG = 0, totalB = 0;
+                Vec3b[] wrapedBytes;
+                int[] meanR = { 0, 0, 0 }, meanG = { 0, 0, 0 }, meanB = { 0, 0, 0 };
+                Mat part = imageInfo.GetMat().SubMat(wrapedArea[1], wrapedArea[3], wrapedArea[0], wrapedArea[2]);
+                part.GetArray(out wrapedBytes);
 
-                for (int k = 0; k < wrapedY; k++)
+                Scalar mean = part.Mean();
+                for (int i = 0; i < wrapedSize; i++)
                 {
-                    int start = (wrapedArea[0] + (wrapedArea[1] + k) * bitmap.Width) * 6;
-                    for (int i = start + 1; i < start + wrapedX * 6; i += 2)
+                    if (Math.Abs(meanR[0] - mean[2]) > Math.Abs(wrapedBytes[i][0] - mean[2]))
                     {
-                        wrapedBytes[c] = imageInfo.processedBytes[i];
-                        c++;
+                        meanR[0] = wrapedBytes[i][0];
+                        meanR[1] = wrapedBytes[i][1];
+                        meanR[2] = wrapedBytes[i][2];
                     }
-                }
-
-                for (int i = 0; i < c - 3; i += 3)
-                {
-                    totalR += wrapedBytes[i];
-                    totalG += wrapedBytes[i + 1];
-                    totalB += wrapedBytes[i + 2];
-                }
-                int averageR = (int)(totalR / (c / 3));
-                int averageG = (int)(totalG / (c / 3));
-                int averageB = (int)(totalB / (c / 3));
-                for (int i = 0; i < c - 3;)
-                {
-                    if (Math.Abs(maxR[0] - averageR) > Math.Abs(wrapedBytes[i] - averageR))
+                    if (Math.Abs(meanG[1] - mean[1]) > Math.Abs(wrapedBytes[i][1] - mean[1]))
                     {
-                        maxR[0] = wrapedBytes[i];
-                        maxR[1] = wrapedBytes[i + 1];
-                        maxR[2] = wrapedBytes[i + 2];
+                        meanG[0] = wrapedBytes[i][0];
+                        meanG[1] = wrapedBytes[i][1];
+                        meanG[2] = wrapedBytes[i][2];
                     }
-                    i++;
-                    if (Math.Abs(maxG[1] - averageG) > Math.Abs(wrapedBytes[i] - averageG))
+                    if (Math.Abs(meanB[2] - mean[0]) > Math.Abs(wrapedBytes[i][2] - mean[0]))
                     {
-                        maxG[0] = wrapedBytes[i - 1];
-                        maxG[1] = wrapedBytes[i];
-                        maxG[2] = wrapedBytes[i + 1];
+                        meanB[0] = wrapedBytes[i][0];
+                        meanB[1] = wrapedBytes[i][1];
+                        meanB[2] = wrapedBytes[i][2];
                     }
-                    i++;
-                    if (Math.Abs(maxB[2] - averageB) > Math.Abs(wrapedBytes[i] - averageB))
-                    {
-                        maxB[0] = wrapedBytes[i - 2];
-                        maxB[1] = wrapedBytes[i - 1];
-                        maxB[2] = wrapedBytes[i];
-                    }
-                    i++;
                 }
 
                 ModelAdding dialog = new ModelAdding();
                 if (dialog.ShowDialog() == true)
                 {
-                    SetModel(maxR, maxG, maxB, dialog.Red, dialog.Green, dialog.Blue, dialog.ModelName.Replace(" ", "_"));
+                    SetModel(meanR, meanG, meanB, dialog.Red, dialog.Green, dialog.Blue, dialog.ModelName.Replace(" ", "_"));
                 }
                 else
                     return;
@@ -503,8 +390,14 @@ namespace HSI
         private void classify_btn_Click(object sender, RoutedEventArgs e)
         {
             classify_btn.IsEnabled = false;
-            backgroundWorker.RunWorkerAsync("ClassifyBarycentric");
-
+            Classify dialog = new Classify();
+            if (dialog.ShowDialog() == true)
+            {
+                classifyThreshold = dialog.Threshold;
+                backgroundWorker.RunWorkerAsync("ClassifyBarycentric");
+            }
+            else
+                return;
         }
 
         private void setModel_btn_Click(object sender, RoutedEventArgs e)
@@ -533,20 +426,20 @@ namespace HSI
 
         private void BackgroundWorker_DoWork(object sender, DoWorkEventArgs e)
         {
-            Tuple<string, byte[]> res;
+            Tuple<string, Vec3b[]> res;
 
             switch ((string)e.Argument)
             {
                 case "ClassifyBarycentric":
-                    res = new Tuple<string, byte[]>("ClassifyBarycentric", ClassifyBarycentric());
+                    res = new Tuple<string, Vec3b[]>("ClassifyBarycentric", ClassifyBarycentric());
                     e.Result = res;
                     break;
                 case "AddImage":
-                    res = new Tuple<string, byte[]>("AddImage", AddImage());
+                    res = new Tuple<string, Vec3b[]>("AddImage", AddImage());
                     e.Result = res;
                     break;
                 case "CalculateRaster":
-                    res = new Tuple<string, byte[]>("CalculateRaster", CalculateRaster());
+                    res = new Tuple<string, Vec3b[]>("CalculateRaster", CalculateRaster());
                     e.Result = res;
                     break;
             }
@@ -554,26 +447,30 @@ namespace HSI
 
         private void BackgroundWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            var res = (Tuple<string, byte[]>)e.Result;
+            var res = (Tuple<string, Vec3b[]>)e.Result;
+            if (res.Item2 == null) return;
 
-            switch (res.Item1)
+            Tuple<BitmapSource, FileStream> obj = null;
+            string savePath = "";
+
+            if (res.Item1 == "ClassifyBarycentric") {
+                PrepareAndSaveStats("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\3.txt");
+                savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\22.tif";
+                classify_btn.IsEnabled = true;
+            }
+            if (res.Item1 == "AddImage")
             {
-                case "ClassifyBarycentric":
-                    PrepareAndSaveStats("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\3.txt");
-                    scr_img.Source = SaveImage(true, "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\2.tif", imageInfo.width, imageInfo.height, imageInfo.dpi, imageInfo.dpi, PixelFormats.Rgb48, res.Item2, 6 * imageInfo.width);
-                    classify_btn.IsEnabled = true;
-                    break;
-                case "AddImage":
-                    scr_img.Source = SaveImage(true, "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\1.tif", imageInfo.width, imageInfo.height, imageInfo.dpi, imageInfo.dpi, PixelFormats.Rgb48, res.Item2, imageInfo.stride);
-                    addImage_btn.IsEnabled = true;
-                    break;
-                case "CalculateRaster":
-                    scr_img.Source = SaveImage(true, "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\4.tif", imageInfo.width, imageInfo.height, imageInfo.dpi, imageInfo.dpi, PixelFormats.Rgb48, res.Item2, imageInfo.stride);
-                    calcRaster_btn.IsEnabled = true;
-                    break;
+                savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\11.tif";
+                addImage_btn.IsEnabled = true;
+            }
+            if (res.Item1 == "CalculateRaster")
+            {
+                savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\44.tif";
+                calcRaster_btn.IsEnabled = true;
             }
 
-
+            Cv2.ImWrite(savePath, imageInfo.GetMat());
+            scr_img.Source = imageInfo.GetBS();
         }
 
         private void BackgroundWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
@@ -586,14 +483,14 @@ namespace HSI
             CalcRaster dialog = new CalcRaster();
             if (dialog.ShowDialog() == true)
             {
-                imageInfo.bandPaths = dialog.BandPaths;
-                imageInfo.path = dialog.path;
-                imageInfo.bandNames[0] = (string)dialog.ch1_lbl.Content;
-                imageInfo.bandNames[1] = (string)dialog.ch2_lbl.Content;
-                imageInfo.bandNames[2] = (string)dialog.ch3_lbl.Content;
+                bandPaths = dialog.BandPaths;
+                path = dialog.path;
+                bandNames[0] = (string)dialog.ch1_lbl.Content;
+                bandNames[1] = (string)dialog.ch2_lbl.Content;
+                bandNames[2] = (string)dialog.ch3_lbl.Content;
                 calcRaster_btn.IsEnabled = false;
                 Formula = dialog.Formula;
-                sat = dialog.sat;
+                satellite = dialog.sat;
             }
             else
                 return;
@@ -601,88 +498,70 @@ namespace HSI
             backgroundWorker.RunWorkerAsync("CalculateRaster");
         }
 
-        byte[] CalculateRaster()
+        Vec3b[] CalculateRaster()
         {
             int progress = 0;
-            int numOfBands = 3;
-            BitmapSource[] bands = new BitmapSource[numOfBands];
+            Mat band = null;
+            byte[][] bytes = new byte[3][];
 
-            Parallel.For(0, numOfBands, (i) => {
-                bands[i] = BandToBitmap_TIF(imageInfo.bandPaths[i]);
+            Parallel.For(0, 3, (i) => {
+                band = OpenSaveHelper.BandToBitmap(bandPaths[i]);
+                band.GetArray(out bytes[i]);
             });
 
-            double dpi = bands[0].DpiX;
-            int width = bands[0].PixelWidth;
-            int height = bands[0].PixelHeight;
-            int bytesPerPixel = (bands[0].Format.BitsPerPixel + 7) / 8;
-            int stride = width * bytesPerPixel;
-            int arrayLength = stride * height;
+            if (bytes[0].Length != bytes[1].Length || bytes[0].Length != bytes[2].Length)
+                return null;
 
-            List<byte[]> pixelArrays = new List<byte[]>();
-            for (int i = 0; i < numOfBands; i++)
-                pixelArrays.Add(new byte[arrayLength]);
-
-            Parallel.For(0, numOfBands, (i) => {
-                bands[i].CopyPixels(pixelArrays[i], stride, 0);
-            });
-
-            bytesPerPixel = 6;
-            stride = width * bytesPerPixel;
-            arrayLength = stride * height;
-            var bitmapBytes = new byte[arrayLength];
-
+            int arrayLength = bytes[0].Length;
             Formula = Formula.Replace("Ch1", "x").Replace("Ch2", "y").Replace("Ch3", "z");
             var comp = new RPNExpression(Formula);
             var RPNString = comp.Prepare();
-            if (bitmapBytes == null)
-                bitmapBytes = new byte[arrayLength];
+            Vec3b[] vecs = new Vec3b[arrayLength];
 
             Stopwatch sw = new Stopwatch();
             sw.Start();
-            //Parallel.For(0, arrayLength * 2 / bytesPerPixel - bytesPerPixel, (i) =>
-            /*for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i++)
+            /*Parallel.For(0, arrayLength, (i) =>
             {
-                if (pixelArrays[0][i] + pixelArrays[1][i] + pixelArrays[2][i] != 0)
+                if (bytes[0][i] + bytes[1][i] + bytes[2][i] != 0)
                 {
-                    int index1 = i / 2 * bytesPerPixel;
                     List<RPNArguments> arguments = new List<RPNArguments>() {
-                        new RPNArguments("x", pixelArrays[0][i]),
-                        new RPNArguments("y", pixelArrays[1][i]),
-                        new RPNArguments("z", pixelArrays[2][i]) };
+                        new RPNArguments("x", bytes[0][i]),
+                        new RPNArguments("y", bytes[1][i]),
+                        new RPNArguments("z", bytes[2][i]) };
                     double temp = (double)comp.Calculate(arguments);
-                    bitmapBytes[index1 + 1] = (byte)((1 + temp) * 200);
-                    bitmapBytes[index1 + 3] = (byte)((1 - temp) * 200);
-                    bitmapBytes[index1 + 5] = 0;//(byte)Math.Abs(temp * 200);
+                    vecs[i][2] = (byte)((1 + temp) * 200);
+                    vecs[i][1] = (byte)((1 - temp) * 200);
+                    vecs[i][0] = 0;//(byte)Math.Abs(temp * 200);
                 }
 
                 progress++;
-                if (progress % ((arrayLength * 2 / bytesPerPixel - bytesPerPixel) / 100) == 0)
-                    backgroundWorker.ReportProgress(progress / ((arrayLength * 2 / bytesPerPixel - bytesPerPixel) / 100));
-            }*///);
+                if (progress % (arrayLength / 100) == 0)
+                    backgroundWorker.ReportProgress(progress / (arrayLength / 100));
+            });*/
             sw.Stop();
             var time = sw.Elapsed.TotalSeconds;
-            for (int i = 0; i < arrayLength * 2 / bytesPerPixel - bytesPerPixel; i++)
+            for (int i = 0; i < arrayLength; i++)
             {
-                if (pixelArrays[0][i] + pixelArrays[1][i] == 0)
+                if (bytes[0][i] + bytes[1][i] == 0)
                     continue;
-                int index1 = i / 2 * bytesPerPixel;
                 
-                double m = pixelArrays[0][i];
-                double n = pixelArrays[1][i];              
+                double m = bytes[0][i];
+                double n = bytes[1][i];
                 double temp = (m - n) / (m + n);
-                bitmapBytes[index1 + 1] = (byte)((1 + temp) * 200);
-                bitmapBytes[index1 + 3] = (byte)((1 - temp) * 200);
-                bitmapBytes[index1 + 5] = 0;//(byte)Math.Abs(temp * 200);
+                vecs[i][2] = (byte)((1 + temp) * 200);
+                vecs[i][1] = (byte)((1 - temp) * 200);
+                vecs[i][0] = 0;//(byte)Math.Abs(temp * 200);
 
                 progress++;
-                if (progress % ((arrayLength * 2 / bytesPerPixel - bytesPerPixel) / 100) == 0)
-                    backgroundWorker.ReportProgress(progress / ((arrayLength * 2 / bytesPerPixel - bytesPerPixel) / 100));
+                if (progress % (arrayLength / 100) == 0)
+                    backgroundWorker.ReportProgress(progress / (arrayLength / 100));
             }
 
-            backgroundWorker.ReportProgress(100);
-            imageInfo.SetValues(bitmapBytes, width, height, dpi, bytesPerPixel, stride);
+            imageInfo = new ImageInfo(new Mat(band.Rows, band.Cols, MatType.CV_8UC3, vecs), satellite, path, bandPaths, bandNames);
 
-            return bitmapBytes;
+            backgroundWorker.ReportProgress(100);
+
+            return vecs;
         }
 
         private void hist_fromFile_click(object sender, RoutedEventArgs e)
@@ -690,14 +569,28 @@ namespace HSI
             OpenFileDialog ofd = new OpenFileDialog();
             if (imageInfo.path != "")
                 ofd.InitialDirectory = imageInfo.path;
-
-            if (ofd.ShowDialog() == true)
+            ChooseSatellite chooseSatellite = new ChooseSatellite();
+            
+            if (ofd.ShowDialog() == true && chooseSatellite.ShowDialog() == true)
             {
-                Histogram.MakeFromFile(ofd.FileName, 256, 300);
-
+                Histogram.MakeFromFile(ofd.FileName, chooseSatellite.camera);
+                
             }
             else return;
         }
+        
 
+        private void openHDF_click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+            if (imageInfo.path != "")
+                ofd.InitialDirectory = imageInfo.path;
+            
+        }
+
+        private void SaveImage_Click(object sender, RoutedEventArgs e)
+        {
+            
+        }
     }
 }

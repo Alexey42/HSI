@@ -8,15 +8,19 @@ namespace HSI.SatelliteInfo
 {
     public abstract class Satellite
     {
+        public string name;
 
-        public abstract void SetDirectory(string[] d);
+        public float brightCoef;
+        public abstract void SetDirectory(string path);
 
-        public abstract string GetBandNameByInt(int ch);
+        public abstract string GetBandNameByNumber(string ch);
 
-        public abstract string FindBandByInt(int ch);
+        public abstract string FindBandByNumber(string ch);
 
         public abstract string GetBandNameByFilename(string file);
 
-        public abstract double GetResolution();
+        public abstract double GetResolution(string ch);
+
+        public abstract string GetFormat();
     }
 }

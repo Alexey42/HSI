@@ -1,34 +1,65 @@
-﻿using System;
+﻿using OpenCvSharp;
+using OpenCvSharp.WpfExtensions;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Media.Imaging;
 
 namespace HSI
 {
     public static class Histogram
     {
-        public static Bitmap Make(int width, int height, int[] data, System.Drawing.Color color)
+        public static Mat[] Make(Mat data, string sat)
         {
-            Bitmap b = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
-            int[] temp = new int[data.Length];
-            Array.Copy(data, temp, data.Length);
-            int norm = GetMax(temp) / height;
+            Mat[] res = new Mat[data.Channels()];
 
-            for (int i = 0; i < width; i++)
+            for (int i = 0; i < data.Channels(); i++)
             {
-                temp[i] /= norm;
-                for (int j = 0; temp[i] > 0 && j < height; j++)
-                {
-                    temp[i]--;
-                    b.SetPixel(i, height - 1 - j, color);
-                }
+                res[i] = new Mat();
+                if (sat == "Landsat 8")
+                    Cv2.CalcHist(new Mat[1] { data.ExtractChannel(i) }, new int[1] { 0 }, null, res[i], 1,
+                        new int[1] { 255 }, new Rangef[1] { new Rangef(1f, 256f) });
+                else
+                    Cv2.CalcHist(new Mat[1] { data.ExtractChannel(i) }, new int[1] { 0 }, null, res[i], 1,
+                        new int[1] { 255 }, new Rangef[1] { new Rangef(0f, 256f) });
             }
 
-            return b;
+            return res;
+        }
+
+        public static Mat[] MakeVisual(Mat[] data)
+        {
+            Mat[] res = new Mat[data.Length];
+            Scalar[] colors = new Scalar[3] { Scalar.Red, Scalar.Green, Scalar.Blue };
+            for (int i = 0; i < data.Length; i++)
+            {
+                double max;
+                data[i].MinMaxIdx(out _, out max);
+                double coef = max / 300;
+                res[i] = new Mat(300, 256, MatType.CV_8UC3);
+                for (int j = 0; j < 256; j++)
+                {
+                    var val = data[i].Get<float>(j);
+                    Cv2.Line(res[i], j, 0, j, 299, Scalar.White, 1);
+                    if (val > 0)
+                    {
+                        int len = (int)(val / coef);
+                        Cv2.Line(res[i], j, 299, j, 299 - len, colors[i], 1);
+                    }
+                }
+
+                Show(res[i], data[i], "" + (i + 1));
+            }
+
+            
+
+            return res;
         }
 
         public static System.Drawing.Color ColorFromBandName(string name)
@@ -66,76 +97,22 @@ namespace HSI
             return histMax;
         }
 
-        public static void MakeFromFile(string filename, int res_width, int res_height)
+        public static Mat[] MakeFromFile(string filename, string sat)
         {
-            BitmapSource bm = null;
-            string type = "";
-            int bytes = 1;
+            //string type = filename.Substring(filename.Length - 3, 3).ToLower();
+            Mat mat = Cv2.ImRead(filename);
 
-            type = filename.Substring(filename.Length - 3, 3).ToLower();
-            if (type == "tif" || type == "iff")
-            {
-                type = "tif";
-                FileStream stream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read);
-                TiffBitmapDecoder decoder = new TiffBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
-                bm = decoder.Frames[0];
-            }
-            if (type == "peg" || type == "jpg")
-            {
-                type = "jpeg";
-                FileStream stream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read);
-                JpegBitmapDecoder decoder = new JpegBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
-                bm = decoder.Frames[0];
-            }
-
-            bytes = (bm.Format.BitsPerPixel + 7) / 8;
-            int width = bm.PixelWidth;
-            int height = bm.PixelHeight;
-            int stride = width * bytes;
-            int arrayLength = stride * height;
-            byte[] array = new byte[arrayLength];
-            bm.CopyPixels(array, stride, 0);
-            int limit = arrayLength / bytes - bytes;
-            int bands = bytes;
-            if (type == "tif")
-            {
-                limit = arrayLength * 2 / bytes - bytes;
-                bands = bytes / 2;
-            }
-
-            List<int[]> h = new List<int[]>();
-            for (int i = 0; i < bands; i++)
-                h.Add(new int[256]);
-
-            for (int i = 0; i < limit; i += bytes)
-            {
-                if (type == "tif")
-                {
-                    for (int j = 0; j < bands * 2; j += 2)
-                        if (array[i + j + 1] > 0)
-                            h[j / 2][array[i + j + 1]]++;
-                }
-                else
-                {
-                    for (int j = 0; j < bands; j++)
-                        if (array[i + j] > 0)
-                            h[j][array[i + j]]++;
-                }
-            }
-
-            System.Drawing.Color color = System.Drawing.Color.Red;
-            for (int i = 0; i < h.Count; i++)
-            {
-                if (i == 1) color = System.Drawing.Color.Green;
-                else if (i == 2) color = System.Drawing.Color.Blue;
-                Show(Make(res_width, res_height, h[i], color), h[i], "" + (i + 1));
-            }
+            return MakeVisual(Make(mat, sat));
         }
 
-        public static void Show(Bitmap b, int[] data, string name)
+        public static void Show(Mat b, Mat data, string name)
         {
-            HistogramWindow win = new HistogramWindow(b, data, name);
-            win.Show();
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                HistogramWindow win = new HistogramWindow(b, data, name);
+                win.Show();
+            });
+            
         }
 
         public static int FindMean(int[] data)

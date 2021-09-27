@@ -26,9 +26,9 @@ namespace HSI
         public string path = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1"; // В релизе оставить ""
         public string[] BandPaths = new string[3];
         public string Camera;
-        public string Formula;
         private VistaFolderBrowserDialog openFileDialog;
         public Satellite sat;
+        public string Formula;
 
         public CalcRaster()
         {
@@ -40,12 +40,9 @@ namespace HSI
             ListBoxItem l = (ListBoxItem)cam.SelectedItem;
             Camera = l.Content.ToString();
             Formula = formula.Text;
-            switch (Camera)
-            {
-                case "Landsat 8":
-                    ParseLandsat8(openFileDialog);
-                    break;
-            }
+
+            Parse(openFileDialog);
+
             this.DialogResult = true;
         }
 
@@ -56,6 +53,9 @@ namespace HSI
             {
                 case "Landsat 8":
                     sat = new Landsat8();
+                    break;
+                case "Sentinel 2":
+                    sat = new Sentinel2();
                     break;
             }
         }
@@ -70,31 +70,29 @@ namespace HSI
                 openFileDialog = ofd;
                 path = ofd.SelectedPath;
                 chosenDirectory_lbl.Content = path;
-                sat.SetDirectory(Directory.GetFiles(path));
+                sat.SetDirectory(path);
             }
 
         }
 
-        void ParseLandsat8(VistaFolderBrowserDialog ofd)
+        void Parse(VistaFolderBrowserDialog ofd)
         {
-            //var directory = Directory.GetFiles(/*ofd.FileName*/ofd.SelectedPath);
-            var directory = Directory.GetFiles("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1");
-            sat.SetDirectory(directory); // В релизе этих трёх строчек быть не должно
-
+            if (Camera == "Landsat 8") sat.SetDirectory("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1"); // В релизе этой строки быть не должно
+            if (Camera == "Sentinel 2") sat.SetDirectory("D:\\HSI_images\\S2B_MSIL1C_20190602T080619_N0207_R078_T38VMH_20190602T102902.SAFE"); // В релизе этой строки быть не должно
             if (ch1.Text != "...")
             {
-                BandPaths[0] = sat.FindBandByInt(int.Parse(ch1.Text));
-                ch1_lbl.Content = sat.GetBandNameByInt(int.Parse(ch1.Text)); // В релизе убрать
+                BandPaths[0] = sat.FindBandByNumber(ch1.Text);
+                ch1_lbl.Content = sat.GetBandNameByNumber(ch1.Text); // В релизе убрать
             }
             if (ch2.Text != "...")
             {
-                BandPaths[1] = sat.FindBandByInt(int.Parse(ch2.Text));
-                ch2_lbl.Content = sat.GetBandNameByInt(int.Parse(ch2.Text)); // В релизе убрать
+                BandPaths[1] = sat.FindBandByNumber(ch2.Text);
+                ch2_lbl.Content = sat.GetBandNameByNumber(ch2.Text); // В релизе убрать
             }
             if (ch3.Text != "...")
             {
-                BandPaths[2] = sat.FindBandByInt(int.Parse(ch3.Text));
-                ch3_lbl.Content = sat.GetBandNameByInt(int.Parse(ch3.Text)); // В релизе убрать
+                BandPaths[2] = sat.FindBandByNumber(ch3.Text);
+                ch3_lbl.Content = sat.GetBandNameByNumber(ch3.Text); // В релизе убрать
             }
         }
 
@@ -137,9 +135,7 @@ namespace HSI
             if (ch1_lbl == null || ch2_lbl == null || ch3_lbl == null) return;
             var ch = (TextBox)sender;
             if (ch.Text == "...") return;
-            int res = 0;
-            int.TryParse(ch.Text, out res);
-            string name = sat.GetBandNameByInt(res);
+            string name = sat.GetBandNameByNumber(ch.Text);
             switch (ch.Name)
             {
                 case "ch1":

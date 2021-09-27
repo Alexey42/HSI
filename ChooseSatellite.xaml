@@ -1,0 +1,18 @@
+﻿<Window x:Class="HSI.ChooseSatellite"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:HSI"
+        mc:Ignorable="d"
+        Title="ChooseSatellite" Height="212" Width="144">
+    <Grid>
+        <ListBox x:Name="cam" SelectionChanged="cam_SelectionChanged" HorizontalAlignment="Left" Height="101" Margin="10,36,0,0" VerticalAlignment="Top" Width="113" SelectedIndex="0">
+            <ListBoxItem Content="Landsat 8"/>
+            <ListBoxItem Content="Sentinel 2"/>
+        </ListBox>
+        <Label Content="Выберите камеру" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Width="113"/>
+        <Button Content="Ок" Click="Button_Click" HorizontalAlignment="Left" Margin="28,142,0,0" VerticalAlignment="Top" Width="75"/>
+
+    </Grid>
+</Window>
