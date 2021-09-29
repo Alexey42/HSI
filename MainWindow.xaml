@@ -63,6 +63,6 @@
         <!--<Button Content="Статистика" Click="GetStatistic_btn" HorizontalAlignment="Left" Margin="592,35,0,0" VerticalAlignment="Top" Width="74"/>-->
         <ProgressBar x:Name="progressBar" HorizontalAlignment="Left" Height="10" Margin="682,4,0,0" VerticalAlignment="Top" Width="100"/>
         <Button x:Name="calcRaster_btn" Content="Калькулятор растров" Click="calcRaster_btn_Click" HorizontalAlignment="Left" Margin="435,35,0,0" VerticalAlignment="Top" Width="124"/>
-        <Button x:Name="hdf_btn" Content="Гистограмма" Click="openHDF_click" HorizontalAlignment="Left" Margin="588,35,0,0" VerticalAlignment="Top" Width="77"/>
+        <Button x:Name="hdf_btn" Content="HDF5" Click="openHDF_click" HorizontalAlignment="Left" Margin="588,35,0,0" VerticalAlignment="Top" Width="77"/>
     </Grid>
 </Window>

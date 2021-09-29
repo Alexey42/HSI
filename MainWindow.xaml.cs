@@ -13,9 +13,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using OSGeo.GDAL;
-using OSGeo.OGR;
-using OSGeo.OSR;
 using System.IO;
 using System.Drawing;
 using System.Windows.Interop;
@@ -54,8 +51,6 @@ namespace HSI
         public MainWindow()
         {
             InitializeComponent();
-            GdalConfiguration.ConfigureGdal();
-            Gdal.AllRegister();
             models = new List<Model>();
             imageInfo = new ImageInfo();
             wrapedArea = new int[4];
@@ -82,35 +77,6 @@ namespace HSI
             scr_img_scale.ScaleX = 0.05;
             scr_img_scale.ScaleY = 0.05;
             backgroundWorker.RunWorkerAsync("AddImage");
-        }
-
-        Vec3b[] AddImage()
-        {
-            Mat band = null;
-            byte[][] bytes = new byte[3][];
-
-            Parallel.For(0, 3, (i) => {
-                band = OpenSaveHelper.BandToBitmap(bandPaths[i]);
-                band.GetArray(out bytes[i]);
-            });
-
-            if (bytes[0].Length != bytes[1].Length || bytes[0].Length != bytes[2].Length)
-                return null;
-
-            int arrayLength = bytes[0].Length;
-            backgroundWorker.ReportProgress(50);
-
-            Vec3b[] vecs = new Vec3b[arrayLength];
-            for (int i = 0; i < arrayLength; i++)
-                vecs[i] = new Vec3b((byte)(bytes[2][i] * satellite.brightCoef), (byte)(bytes[1][i] * satellite.brightCoef),
-                    (byte)(bytes[0][i] * satellite.brightCoef));
-            Mat res = new Mat(band.Rows, band.Cols, MatType.CV_8UC3, vecs);
-            bytes = null;
-       
-            backgroundWorker.ReportProgress(100);
-            imageInfo = new ImageInfo(res, satellite, path, bandPaths, bandNames);
-
-            return vecs;
         }
 
         System.Windows.Media.Color GetRandomColor()
@@ -181,7 +147,7 @@ namespace HSI
             modelsPanel.Children.Remove(ui);
         }
 
-        Vec3b[] ClassifyBarycentric()
+        Mat ClassifyBarycentric()
         {
             if (models.Count == 0) return null;
 
@@ -231,8 +197,6 @@ namespace HSI
             });
             backgroundWorker.ReportProgress(100);
             Mat mat = new Mat(imageInfo.height, imageInfo.width, MatType.CV_8UC3, array);
-            //Cv2.ImWrite("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\22.tif", mat);
-            imageInfo = new ImageInfo(mat, satellite, path, bandPaths, bandNames);
             var resolution = imageInfo.satellite.GetResolution("");
             for (int i = 0; i < models.Count; i++)
             {
@@ -241,7 +205,7 @@ namespace HSI
                 models[i].coverPercentage = coverCount[i] * 100d / array.Length;
             }
 
-            return array;
+            return mat;
         }
 
         byte Clamp(byte x, byte min, byte max)
@@ -426,28 +390,28 @@ namespace HSI
 
         private void BackgroundWorker_DoWork(object sender, DoWorkEventArgs e)
         {
-            Tuple<string, Vec3b[]> res;
+            Tuple<string, Mat> res;
 
             switch ((string)e.Argument)
             {
                 case "ClassifyBarycentric":
-                    res = new Tuple<string, Vec3b[]>("ClassifyBarycentric", ClassifyBarycentric());
+                    res = new Tuple<string, Mat>("ClassifyBarycentric", ClassifyBarycentric());
                     e.Result = res;
                     break;
                 case "AddImage":
-                    res = new Tuple<string, Vec3b[]>("AddImage", AddImage());
-                    e.Result = res;
+                    e.Result = new Tuple<string, Mat>("AddImage", ImageBuilder.BuildImage(bandPaths, satellite, backgroundWorker));
                     break;
                 case "CalculateRaster":
-                    res = new Tuple<string, Vec3b[]>("CalculateRaster", CalculateRaster());
+                    res = new Tuple<string, Mat>("CalculateRaster", RasterCalcs.CalculateRaster(Formula, bandPaths, backgroundWorker, satellite));
                     e.Result = res;
                     break;
             }
+            backgroundWorker.ReportProgress(0);
         }
 
         private void BackgroundWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            var res = (Tuple<string, Vec3b[]>)e.Result;
+            var res = (Tuple<string, Mat>)e.Result;
             if (res.Item2 == null) return;
 
             Tuple<BitmapSource, FileStream> obj = null;
@@ -456,21 +420,25 @@ namespace HSI
             if (res.Item1 == "ClassifyBarycentric") {
                 PrepareAndSaveStats("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\3.txt");
                 savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\22.tif";
+                imageInfo = new ImageInfo(res.Item2, satellite, path, bandPaths, bandNames);
                 classify_btn.IsEnabled = true;
             }
             if (res.Item1 == "AddImage")
             {
                 savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\11.tif";
+                imageInfo = new ImageInfo(res.Item2, satellite, path, bandPaths, bandNames);
                 addImage_btn.IsEnabled = true;
             }
             if (res.Item1 == "CalculateRaster")
             {
                 savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\44.tif";
+                imageInfo = new ImageInfo(res.Item2, satellite, path, bandPaths, bandNames);
                 calcRaster_btn.IsEnabled = true;
             }
 
             Cv2.ImWrite(savePath, imageInfo.GetMat());
             scr_img.Source = imageInfo.GetBS();
+            
         }
 
         private void BackgroundWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
@@ -498,72 +466,6 @@ namespace HSI
             backgroundWorker.RunWorkerAsync("CalculateRaster");
         }
 
-        Vec3b[] CalculateRaster()
-        {
-            int progress = 0;
-            Mat band = null;
-            byte[][] bytes = new byte[3][];
-
-            Parallel.For(0, 3, (i) => {
-                band = OpenSaveHelper.BandToBitmap(bandPaths[i]);
-                band.GetArray(out bytes[i]);
-            });
-
-            if (bytes[0].Length != bytes[1].Length || bytes[0].Length != bytes[2].Length)
-                return null;
-
-            int arrayLength = bytes[0].Length;
-            Formula = Formula.Replace("Ch1", "x").Replace("Ch2", "y").Replace("Ch3", "z");
-            var comp = new RPNExpression(Formula);
-            var RPNString = comp.Prepare();
-            Vec3b[] vecs = new Vec3b[arrayLength];
-
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
-            /*Parallel.For(0, arrayLength, (i) =>
-            {
-                if (bytes[0][i] + bytes[1][i] + bytes[2][i] != 0)
-                {
-                    List<RPNArguments> arguments = new List<RPNArguments>() {
-                        new RPNArguments("x", bytes[0][i]),
-                        new RPNArguments("y", bytes[1][i]),
-                        new RPNArguments("z", bytes[2][i]) };
-                    double temp = (double)comp.Calculate(arguments);
-                    vecs[i][2] = (byte)((1 + temp) * 200);
-                    vecs[i][1] = (byte)((1 - temp) * 200);
-                    vecs[i][0] = 0;//(byte)Math.Abs(temp * 200);
-                }
-
-                progress++;
-                if (progress % (arrayLength / 100) == 0)
-                    backgroundWorker.ReportProgress(progress / (arrayLength / 100));
-            });*/
-            sw.Stop();
-            var time = sw.Elapsed.TotalSeconds;
-            for (int i = 0; i < arrayLength; i++)
-            {
-                if (bytes[0][i] + bytes[1][i] == 0)
-                    continue;
-                
-                double m = bytes[0][i];
-                double n = bytes[1][i];
-                double temp = (m - n) / (m + n);
-                vecs[i][2] = (byte)((1 + temp) * 200);
-                vecs[i][1] = (byte)((1 - temp) * 200);
-                vecs[i][0] = 0;//(byte)Math.Abs(temp * 200);
-
-                progress++;
-                if (progress % (arrayLength / 100) == 0)
-                    backgroundWorker.ReportProgress(progress / (arrayLength / 100));
-            }
-
-            imageInfo = new ImageInfo(new Mat(band.Rows, band.Cols, MatType.CV_8UC3, vecs), satellite, path, bandPaths, bandNames);
-
-            backgroundWorker.ReportProgress(100);
-
-            return vecs;
-        }
-
         private void hist_fromFile_click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog ofd = new OpenFileDialog();
@@ -585,6 +487,10 @@ namespace HSI
             OpenFileDialog ofd = new OpenFileDialog();
             if (imageInfo.path != "")
                 ofd.InitialDirectory = imageInfo.path;
+            if (ofd.ShowDialog() == true)
+            {
+                //var dataset = Gdal.Open(ofd.FileName, Access.GA_ReadOnly);
+            }
             
         }
 

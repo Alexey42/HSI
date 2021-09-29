@@ -40,20 +40,17 @@ namespace HSI
             string type = path.Substring(path.Length - 3, 3).ToLower();
             if (type == "tif" || type == "iff")
             {
-                /*using (var pngStream = new MemoryStream())
-                {
-                    using (var tiffStream = new FileStream(path, FileMode.Open, FileAccess.Read))
-                    using (var bitmap = new System.Drawing.Bitmap(tiffStream))
-                    {
-                        bitmap.Save(pngStream, System.Drawing.Imaging.ImageFormat.Png);
-                    }
-                    var pngBytes = pngStream.ToArray();
-                    return Mat.FromImageData(pngBytes, ImreadModes.Grayscale);
-                }*/
                 return Cv2.ImRead(path, ImreadModes.Grayscale);
             }
             else 
                 return Cv2.ImRead(path, ImreadModes.Grayscale);
+        }
+
+        public static BitmapSource BandToBitmap_TIF(string path)
+        {
+            FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            TiffBitmapDecoder decoder = new TiffBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
+            return decoder.Frames[0];
         }
 
         public static BitmapSource BandToBitmap_JPEG(string path)

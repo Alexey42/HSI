@@ -18,13 +18,13 @@ namespace HSI.SatelliteInfo
 
         public Sentinel2() {
             name = "Sentinel 2";
-            brightCoef = 10;
+            brightCoef = 9;
         }
 
         public Sentinel2(string d)
         {
             name = "Sentinel 2";
-            brightCoef = 10;
+            brightCoef = 9;
             SetDirectory(d);
         }
 
