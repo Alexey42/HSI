@@ -21,6 +21,7 @@ namespace HSI
     public partial class Classify : Window
     {
         public float Threshold = 8;
+        public string Method = "";
 
         public Classify()
         {
@@ -30,7 +31,14 @@ namespace HSI
         private void Accept_Click(object sender, RoutedEventArgs e)
         {
             Threshold = float.Parse(threshold_textbox.Text, CultureInfo.InvariantCulture.NumberFormat);
+            var item = (ComboBoxItem)method_list.SelectedItem;
+            Method = item.Name;
             this.DialogResult = true;
+        }
+
+        private void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            
         }
     }
 }

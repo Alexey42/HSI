@@ -35,7 +35,7 @@ namespace HSI
             InitializeComponent();
         }
 
-        private void Accept_Click(object sender, RoutedEventArgs e)
+        private void Accept_Click(object sender, RoutedEventArgs ez)
         {
             ListBoxItem l = (ListBoxItem)cam.SelectedItem;
             Camera = l.Content.ToString();

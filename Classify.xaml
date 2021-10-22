@@ -7,8 +7,13 @@
         mc:Ignorable="d"
         Title="Classify" Height="250" Width="400">
     <Grid>
-        <TextBox x:Name="threshold_textbox" Text="8.0" HorizontalAlignment="Left" Height="23" Margin="193,76,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="44"/>
-        <Label Content="Порог" HorizontalAlignment="Left" Margin="149,73,0,0" VerticalAlignment="Top"/>
+        <TextBox x:Name="threshold_textbox" Text="8.0" HorizontalAlignment="Left" Height="23" Margin="189,126,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="44"/>
+        <Label Content="Порог" HorizontalAlignment="Left" Margin="145,123,0,0" VerticalAlignment="Top"/>
         <Button Content="Ок" IsDefault="True" Click="Accept_Click" HorizontalAlignment="Left" Margin="153,189,0,0" VerticalAlignment="Top" Width="75"/>
+        <ComboBox x:Name="method_list" SelectedIndex="2" SelectionChanged="ComboBox_SelectionChanged" HorizontalAlignment="Left" Margin="116,48,0,0" VerticalAlignment="Top" Width="167">
+            <ComboBoxItem Name="ClassifyAngle">Спектральный угол</ComboBoxItem>
+            <ComboBoxItem Name="ClassifyEuclid">Евклидово расстояние</ComboBoxItem>
+            <ComboBoxItem Name="ClassifyBarycetric">Барицентрические координаты</ComboBoxItem>
+        </ComboBox>
     </Grid>
 </Window>

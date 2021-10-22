@@ -43,6 +43,7 @@ namespace HSI
         BackgroundWorker backgroundWorker;
         string Formula = "";
         float classifyThreshold = 0;
+        string classifyMethod = "ClassifyBarycentric";
         public Satellite satellite;
         string path;
         public string[] bandPaths = new string[3];
@@ -145,6 +146,96 @@ namespace HSI
             var elem = (Button)sender;
             models.Remove(models.Find((x) => { return x.name + "Button" == elem.Name; }));
             modelsPanel.Children.Remove(ui);
+        }
+
+        Mat ClassifyEuclid()
+        {
+            if (models.Count == 0) return null;
+
+            int[] coverCount = new int[models.Count];
+
+            int progress = 0;
+            Vec3b[] array = imageInfo.GetBytes();
+
+            Parallel.For(0, array.Length, (i) =>
+            {
+                if (array[i][0] != 0 || array[i][1] != 0 || array[i][2] != 0)
+                {
+                    for (int k = 0; k < models.Count; k++)
+                    {
+                        double a = Math.Pow(models[k].data[0, 0] - array[i][0], 2) / models[k].data[0, 0];
+                        double b = Math.Pow(models[k].data[1, 1] - array[i][1], 2) / models[k].data[1, 1];
+                        double c = Math.Pow(models[k].data[2, 2] - array[i][2], 2) / models[k].data[2, 2];
+                        double dist = Math.Sqrt(a + b + c);
+                        if (Math.Abs(dist) < classifyThreshold)
+                        {
+                            coverCount[k]++;
+                            array[i] = new Vec3b(models[k].userColor.B, models[k].userColor.G, models[k].userColor.R);
+                            break;
+                        }
+                    }
+                }
+                progress++;
+                if (progress % (array.Length / 100) == 0)
+                    backgroundWorker.ReportProgress(progress / array.Length / 100);
+            });
+            backgroundWorker.ReportProgress(100);
+            Mat mat = new Mat(imageInfo.height, imageInfo.width, MatType.CV_8UC3, array);
+            var resolution = imageInfo.satellite.GetResolution("");
+            for (int i = 0; i < models.Count; i++)
+            {
+                models[i].coverPixels = coverCount[i];
+                models[i].coverMetres = Convert.ToInt64(coverCount[i] * resolution * resolution);
+                models[i].coverPercentage = coverCount[i] * 100d / array.Length;
+            }
+
+            return mat;
+        }
+
+        Mat ClassifyAngle()
+        {
+            if (models.Count == 0) return null;
+
+            int[] coverCount = new int[models.Count];
+
+            int progress = 0;
+            Vec3b[] array = imageInfo.GetBytes();
+
+            Parallel.For(0, array.Length, (i) =>
+            {
+                if (array[i][0] != 0 || array[i][1] != 0 || array[i][2] != 0)
+                {
+                    for (int k = 0; k < models.Count; k++)
+                    {
+                        double scalar = models[k].data[0, 0] * array[i][0] + models[k].data[1, 1] * array[i][1] +
+                            models[k].data[2, 2] * array[i][2];
+                        double a = Math.Sqrt(Math.Pow(models[k].data[0, 0], 2) + Math.Pow(models[k].data[1, 1], 2) + Math.Pow(models[k].data[2, 2], 2));
+                        double b = Math.Sqrt(Math.Pow(array[i][0], 2) + Math.Pow(array[i][1], 2) + Math.Pow(array[i][2], 2));
+                        double cos = scalar / (a * b);
+                        double angle = Math.Acos(cos) * 180 / Math.PI;
+                        if (Math.Abs(angle) < classifyThreshold)
+                        {
+                            coverCount[k]++;
+                            array[i] = new Vec3b(models[k].userColor.B, models[k].userColor.G, models[k].userColor.R);
+                            break;
+                        }
+                    }
+                }
+                progress++;
+                if (progress % (array.Length / 100) == 0)
+                    backgroundWorker.ReportProgress(progress / array.Length / 100);
+            });
+            backgroundWorker.ReportProgress(100);
+            Mat mat = new Mat(imageInfo.height, imageInfo.width, MatType.CV_8UC3, array);
+            var resolution = imageInfo.satellite.GetResolution("");
+            for (int i = 0; i < models.Count; i++)
+            {
+                models[i].coverPixels = coverCount[i];
+                models[i].coverMetres = Convert.ToInt64(coverCount[i] * resolution * resolution);
+                models[i].coverPercentage = coverCount[i] * 100d / array.Length;
+            }
+
+            return mat;
         }
 
         Mat ClassifyBarycentric()
@@ -357,8 +448,23 @@ namespace HSI
             Classify dialog = new Classify();
             if (dialog.ShowDialog() == true)
             {
+                classifyMethod = dialog.Method;
                 classifyThreshold = dialog.Threshold;
-                backgroundWorker.RunWorkerAsync("ClassifyBarycentric");
+                backgroundWorker.RunWorkerAsync(classifyMethod);
+            }
+            else
+                return;
+        }
+
+        private void segment_btn_Click(object sender, RoutedEventArgs e)
+        {
+            classify_btn.IsEnabled = false;
+            Segment dialog = new Segment();
+            if (dialog.ShowDialog() == true)
+            {
+                classifyMethod = dialog.Method;
+                classifyThreshold = dialog.Threshold;
+                backgroundWorker.RunWorkerAsync(classifyMethod);
             }
             else
                 return;
@@ -398,6 +504,14 @@ namespace HSI
                     res = new Tuple<string, Mat>("ClassifyBarycentric", ClassifyBarycentric());
                     e.Result = res;
                     break;
+                case "ClassifyAngle":
+                    res = new Tuple<string, Mat>("ClassifyAngle", ClassifyAngle());
+                    e.Result = res;
+                    break;
+                case "ClassifyEuclid":
+                    res = new Tuple<string, Mat>("ClassifyEuclid", ClassifyEuclid());
+                    e.Result = res;
+                    break;
                 case "AddImage":
                     e.Result = new Tuple<string, Mat>("AddImage", ImageBuilder.BuildImage(bandPaths, satellite, backgroundWorker));
                     break;
@@ -417,7 +531,7 @@ namespace HSI
             Tuple<BitmapSource, FileStream> obj = null;
             string savePath = "";
 
-            if (res.Item1 == "ClassifyBarycentric") {
+            if (res.Item1 == "ClassifyBarycentric" || res.Item1 == "ClassifyAngle" || res.Item1 == "ClassifyEuclid") {
                 PrepareAndSaveStats("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\3.txt");
                 savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\22.tif";
                 imageInfo = new ImageInfo(res.Item2, satellite, path, bandPaths, bandNames);
