@@ -1,16 +1,17 @@
-﻿using OpenCvSharp;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using HSI.SatelliteInfo;
 using System.Windows.Media.Imaging;
+using OpenCvSharp;
 using OpenCvSharp.WpfExtensions;
+using System.Runtime.InteropServices;
 
 namespace HSI
 {
-    class ImageInfo
+    class ImageInfo : IDisposable
     {
         Mat mat;
         public int width;
@@ -26,9 +27,7 @@ namespace HSI
         public string[] bandPaths = new string[3];
         public string[] bandNames = new string[3];
 
-        public ImageInfo() { }
-
-        
+        public ImageInfo() { } 
 
         public ImageInfo(Mat m, string _path)
         {
@@ -65,7 +64,18 @@ namespace HSI
 
         public BitmapSource GetBS()
         {
-            return BitmapSourceConverter.ToBitmapSource(mat);
+            return mat.ToBitmapSource();
+        }
+
+        public BitmapImage GetBI()
+        {
+            BitmapImage image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+            image.UriSource = new Uri(path);
+            image.EndInit();
+            return image;
         }
 
         public Vec3b[] GetBytes()
@@ -78,6 +88,18 @@ namespace HSI
         public void SetValues(int _w, int _h, double _dpi, int _bpp, int _s)
         {
             width = _w; height = _h; dpi = _dpi; bpp = _bpp; stride = _s;
+        }
+
+
+        public void Dispose()
+        {
+            if (mat != null)
+                mat.Dispose();
+            path = null;
+            satellite = null;
+            bandPaths = null;
+            bandNames = null;
+            GC.Collect();
         }
     }
 }

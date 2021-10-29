@@ -14,25 +14,20 @@ namespace HSI
 {
     public static class OpenSaveHelper
     {
-        public static Tuple<BitmapSource, FileStream> SaveTifImage(string path, int width, int height, double dpiX, double dpiY, System.Windows.Media.PixelFormat format, byte[] pixels, int stride)
+        public static void SaveTifImage(string path, Mat mat)
         {
-            FileStream str = new FileStream(path, FileMode.OpenOrCreate);
-            /*List<System.Windows.Media.Color> colors = new List<System.Windows.Media.Color>
+            //Tuple<BitmapSource, FileStream> result;
+            using (FileStream str = new FileStream(path, FileMode.OpenOrCreate))
             {
-                Colors.Red,
-                Colors.Green,
-                Colors.Blue
-            };
-            BitmapPalette myPalette = new BitmapPalette(colors);*/
-            BitmapSource bitmapSource = BitmapSource.Create(width, height, dpiX, dpiY, format, null, pixels, stride);
-            TiffBitmapEncoder encoder = new TiffBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(bitmapSource));
-            encoder.Compression = TiffCompressOption.None;
-            encoder.Save(str);
-
-            Tuple<BitmapSource, FileStream> result = new Tuple<BitmapSource, FileStream>(bitmapSource, str);
-
-            return result;
+                BitmapSource bitmapSource = mat.ToBitmapSource();
+                TiffBitmapEncoder encoder = new TiffBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bitmapSource));
+                encoder.Compression = TiffCompressOption.None;
+                encoder.Save(str);
+                //result = new Tuple<BitmapSource, FileStream>(bitmapSource, str);
+            }
+            
+            //return result;
         }
 
         public static Mat BandToBitmap(string path)
@@ -42,7 +37,7 @@ namespace HSI
             {
                 return Cv2.ImRead(path, ImreadModes.Grayscale);
             }
-            else 
+            else
                 return Cv2.ImRead(path, ImreadModes.Grayscale);
         }
 

@@ -7,6 +7,7 @@
         mc:Ignorable="d"
         Title="Segment" Height="319.88" Width="297.59">
     <Grid>
+        <Button Content="Ok" IsDefault="True" Click="Accept_Click" HorizontalAlignment="Left" Margin="106,233,0,0" VerticalAlignment="Top" Width="75"/>
 
     </Grid>
 </Window>

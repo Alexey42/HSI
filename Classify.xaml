@@ -13,7 +13,7 @@
         <ComboBox x:Name="method_list" SelectedIndex="2" SelectionChanged="ComboBox_SelectionChanged" HorizontalAlignment="Left" Margin="116,48,0,0" VerticalAlignment="Top" Width="167">
             <ComboBoxItem Name="ClassifyAngle">Спектральный угол</ComboBoxItem>
             <ComboBoxItem Name="ClassifyEuclid">Евклидово расстояние</ComboBoxItem>
-            <ComboBoxItem Name="ClassifyBarycetric">Барицентрические координаты</ComboBoxItem>
+            <ComboBoxItem Name="ClassifyBarycentric">Барицентрические координаты</ComboBoxItem>
         </ComboBox>
     </Grid>
 </Window>

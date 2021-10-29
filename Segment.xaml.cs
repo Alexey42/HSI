@@ -23,5 +23,10 @@ namespace HSI
         {
             InitializeComponent();
         }
+
+        private void Accept_Click(object sender, RoutedEventArgs ez)
+        {
+            this.DialogResult = true;
+        }
     }
 }

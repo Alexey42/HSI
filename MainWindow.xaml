@@ -21,13 +21,16 @@
             </StackPanel>
         </Button>-->
         <Button x:Name="addImage_btn" Click="Button_Click" Content="Добавить изображение" HorizontalAlignment="Left" Margin="10,35,0,0" VerticalAlignment="Top" Width="138" />
-        <Menu HorizontalAlignment="Left" Height="22" VerticalAlignment="Top" Width="252">
-            <MenuItem Header="Открыть">
-                <MenuItem Header=".tif" Click="OpenImage_Click"></MenuItem>
-                <MenuItem Header=".png" Click="OpenImage_Click"></MenuItem>
-                <MenuItem Header=".jpeg" Click="OpenImage_Click"></MenuItem>
-                <MenuItem Header=".jpeg2000" Click="OpenImage_Click"></MenuItem>
-            </MenuItem>
+        <Menu HorizontalAlignment="Left" Height="22" VerticalAlignment="Top" Width="270">
+            <MenuItem Header="Файл">
+                <MenuItem Header="Открыть">
+                    <MenuItem Header=".tif" Click="OpenImage_Click"></MenuItem>
+                    <MenuItem Header=".png" Click="OpenImage_Click"></MenuItem>
+                    <MenuItem Header=".jpeg" Click="OpenImage_Click"></MenuItem>
+                    <MenuItem Header=".jpeg2000" Click="OpenImage_Click"></MenuItem>
+                </MenuItem>
+                <MenuItem Header="Очистить" Click="ClearCanvas"></MenuItem>
+                </MenuItem>
             <MenuItem Header="Сохранить" Click="SaveImage_Click" Height="22"></MenuItem>
             <MenuItem Header="Функции" Height="22">
                 <MenuItem Header="Гистограмма файла" Click="hist_fromFile_click"></MenuItem>
@@ -35,7 +38,7 @@
         </Menu>
         <Canvas x:Name="canvas_main" Margin="10,72,198,0">
             <local:ZoomBorder x:Name="zoom_border" ClipToBounds="True" Background="LightGray" Margin="2,0,0,0">
-                <Image Name="scr_img" HorizontalAlignment="Left" VerticalAlignment="Top" 
+                <Image Name="scr_img" HorizontalAlignment="Left" VerticalAlignment="Top"
                        Width="{Binding Source.PixelWidth, RelativeSource={RelativeSource Self}}"
                        Height="{Binding Source.PixelHeight, RelativeSource={RelativeSource Self}}"
                        MouseLeftButtonDown="scr_img_MouseLeftButtonDown" MouseLeftButtonUp="scr_img_MouseLeftButtonUp" MouseMove="scr_img_MouseMove">

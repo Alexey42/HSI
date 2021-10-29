@@ -27,7 +27,6 @@ using ru.lsreg.math;
 using System.Diagnostics;
 using System.ComponentModel;
 using System.Windows.Markup;
-using com.sgcombo.RpnLib;
 using HSI.SatelliteInfo;
 
 namespace HSI
@@ -48,6 +47,7 @@ namespace HSI
         string path;
         public string[] bandPaths = new string[3];
         public string[] bandNames = new string[3];
+        
 
         public MainWindow()
         {
@@ -56,10 +56,13 @@ namespace HSI
             imageInfo = new ImageInfo();
             wrapedArea = new int[4];
             backgroundWorker = (BackgroundWorker)this.FindResource("backgroundWorker");
+            scr_img_scale.ScaleX = 0.05;
+            scr_img_scale.ScaleY = 0.05;
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
+            addImage_btn.IsEnabled = false;
             ImageAdding dialog = new ImageAdding();
             if (dialog.ShowDialog() == true)
             {
@@ -68,16 +71,18 @@ namespace HSI
                 bandNames[0] = (string)dialog.ch1_lbl.Content;
                 bandNames[1] = (string)dialog.ch2_lbl.Content;
                 bandNames[2] = (string)dialog.ch3_lbl.Content;
-                addImage_btn.IsEnabled = false;
                 
                 satellite = dialog.sat;
+
+                backgroundWorker.RunWorkerAsync("AddImage");
+                //scr_img_scale.ScaleX = 0.05;
+                //scr_img_scale.ScaleY = 0.05;
             }
             else
+            {
+                addImage_btn.IsEnabled = true;
                 return;
-
-            scr_img_scale.ScaleX = 0.05;
-            scr_img_scale.ScaleY = 0.05;
-            backgroundWorker.RunWorkerAsync("AddImage");
+            } 
         }
 
         System.Windows.Media.Color GetRandomColor()
@@ -163,9 +168,9 @@ namespace HSI
                 {
                     for (int k = 0; k < models.Count; k++)
                     {
-                        double a = Math.Pow(models[k].data[0, 0] - array[i][0], 2) / models[k].data[0, 0];
+                        double a = Math.Pow(models[k].data[0, 0] - array[i][2], 2) / models[k].data[0, 0];
                         double b = Math.Pow(models[k].data[1, 1] - array[i][1], 2) / models[k].data[1, 1];
-                        double c = Math.Pow(models[k].data[2, 2] - array[i][2], 2) / models[k].data[2, 2];
+                        double c = Math.Pow(models[k].data[2, 2] - array[i][0], 2) / models[k].data[2, 2];
                         double dist = Math.Sqrt(a + b + c);
                         if (Math.Abs(dist) < classifyThreshold)
                         {
@@ -177,7 +182,7 @@ namespace HSI
                 }
                 progress++;
                 if (progress % (array.Length / 100) == 0)
-                    backgroundWorker.ReportProgress(progress / array.Length / 100);
+                    backgroundWorker.ReportProgress(progress / (array.Length / 100));
             });
             backgroundWorker.ReportProgress(100);
             Mat mat = new Mat(imageInfo.height, imageInfo.width, MatType.CV_8UC3, array);
@@ -188,6 +193,8 @@ namespace HSI
                 models[i].coverMetres = Convert.ToInt64(coverCount[i] * resolution * resolution);
                 models[i].coverPercentage = coverCount[i] * 100d / array.Length;
             }
+
+            GC.Collect();
 
             return mat;
         }
@@ -207,8 +214,8 @@ namespace HSI
                 {
                     for (int k = 0; k < models.Count; k++)
                     {
-                        double scalar = models[k].data[0, 0] * array[i][0] + models[k].data[1, 1] * array[i][1] +
-                            models[k].data[2, 2] * array[i][2];
+                        double scalar = models[k].data[0, 0] * array[i][2] + models[k].data[1, 1] * array[i][1] +
+                            models[k].data[2, 2] * array[i][0];
                         double a = Math.Sqrt(Math.Pow(models[k].data[0, 0], 2) + Math.Pow(models[k].data[1, 1], 2) + Math.Pow(models[k].data[2, 2], 2));
                         double b = Math.Sqrt(Math.Pow(array[i][0], 2) + Math.Pow(array[i][1], 2) + Math.Pow(array[i][2], 2));
                         double cos = scalar / (a * b);
@@ -223,7 +230,7 @@ namespace HSI
                 }
                 progress++;
                 if (progress % (array.Length / 100) == 0)
-                    backgroundWorker.ReportProgress(progress / array.Length / 100);
+                    backgroundWorker.ReportProgress(progress / (array.Length / 100));
             });
             backgroundWorker.ReportProgress(100);
             Mat mat = new Mat(imageInfo.height, imageInfo.width, MatType.CV_8UC3, array);
@@ -234,6 +241,8 @@ namespace HSI
                 models[i].coverMetres = Convert.ToInt64(coverCount[i] * resolution * resolution);
                 models[i].coverPercentage = coverCount[i] * 100d / array.Length;
             }
+
+            GC.Collect();
 
             return mat;
         }
@@ -268,7 +277,7 @@ namespace HSI
                 if (array[i][0] != 0 || array[i][1] != 0 || array[i][2] != 0)
                 {
                     Matrix r = new Matrix(3, 1);
-                    r[0, 0] = array[i][0]; r[1, 0] = array[i][1]; r[2, 0] = array[i][2];
+                    r[0, 0] = array[i][2]; r[1, 0] = array[i][1]; r[2, 0] = array[i][0];
 
                     for (int k = 0; k < models.Count; k++)
                     {
@@ -284,7 +293,7 @@ namespace HSI
                 }
                 progress++;
                 if (progress % (array.Length / 100) == 0)
-                    backgroundWorker.ReportProgress(progress / array.Length / 100);
+                    backgroundWorker.ReportProgress(progress / (array.Length / 100));
             });
             backgroundWorker.ReportProgress(100);
             Mat mat = new Mat(imageInfo.height, imageInfo.width, MatType.CV_8UC3, array);
@@ -295,6 +304,8 @@ namespace HSI
                 models[i].coverMetres = Convert.ToInt64(coverCount[i] * resolution * resolution);
                 models[i].coverPercentage = coverCount[i] * 100d / array.Length;
             }
+
+            GC.Collect();
 
             return mat;
         }
@@ -325,8 +336,15 @@ namespace HSI
             if (ofd.ShowDialog() == true)
             {
                 imageInfo = new ImageInfo(Cv2.ImRead(ofd.FileName), ofd.FileName);
-                scr_img.Source = imageInfo.GetBS();
+                scr_img.Source = imageInfo.GetBI();
             }
+        }
+
+        private void ClearCanvas(object sender, RoutedEventArgs e)
+        {
+            imageInfo.Dispose();
+            scr_img.Source = null;
+            // остаётся неосвобождёнными 100мб, освобождаются после повторного вызова ClearCanvas(!?)
         }
 
         private void scr_img_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -412,23 +430,23 @@ namespace HSI
                 Scalar mean = part.Mean();
                 for (int i = 0; i < wrapedSize; i++)
                 {
-                    if (Math.Abs(meanR[0] - mean[2]) > Math.Abs(wrapedBytes[i][0] - mean[2]))
+                    if (Math.Abs(meanR[0] - mean[2]) > Math.Abs(wrapedBytes[i][2] - mean[2]))
                     {
-                        meanR[0] = wrapedBytes[i][0];
+                        meanR[0] = wrapedBytes[i][2];
                         meanR[1] = wrapedBytes[i][1];
-                        meanR[2] = wrapedBytes[i][2];
+                        meanR[2] = wrapedBytes[i][0];
                     }
                     if (Math.Abs(meanG[1] - mean[1]) > Math.Abs(wrapedBytes[i][1] - mean[1]))
                     {
-                        meanG[0] = wrapedBytes[i][0];
+                        meanG[0] = wrapedBytes[i][2];
                         meanG[1] = wrapedBytes[i][1];
-                        meanG[2] = wrapedBytes[i][2];
+                        meanG[2] = wrapedBytes[i][0];
                     }
-                    if (Math.Abs(meanB[2] - mean[0]) > Math.Abs(wrapedBytes[i][2] - mean[0]))
+                    if (Math.Abs(meanB[2] - mean[0]) > Math.Abs(wrapedBytes[i][0] - mean[0]))
                     {
-                        meanB[0] = wrapedBytes[i][0];
+                        meanB[0] = wrapedBytes[i][2];
                         meanB[1] = wrapedBytes[i][1];
-                        meanB[2] = wrapedBytes[i][2];
+                        meanB[2] = wrapedBytes[i][0];
                     }
                 }
 
@@ -451,23 +469,104 @@ namespace HSI
                 classifyMethod = dialog.Method;
                 classifyThreshold = dialog.Threshold;
                 backgroundWorker.RunWorkerAsync(classifyMethod);
+                //scr_img_scale.ScaleX = 0.05;
+                //scr_img_scale.ScaleY = 0.05;
             }
             else
+            {
+                classify_btn.IsEnabled = true;
                 return;
+            }
         }
 
         private void segment_btn_Click(object sender, RoutedEventArgs e)
         {
-            classify_btn.IsEnabled = false;
+            segment_btn.IsEnabled = false;
             Segment dialog = new Segment();
             if (dialog.ShowDialog() == true)
             {
-                classifyMethod = dialog.Method;
-                classifyThreshold = dialog.Threshold;
-                backgroundWorker.RunWorkerAsync(classifyMethod);
+                backgroundWorker.RunWorkerAsync("k-means");
             }
             else
+            {
+                segment_btn.IsEnabled = true;
                 return;
+            }
+        }
+
+        Mat Segment()
+        {
+            Mat input = imageInfo.GetMat();
+            Mat output = new Mat();
+            int k = 5;
+            using (Mat points = new Mat())
+            {
+                using (Mat labels = new Mat())
+                {
+                    using (Mat centers = new Mat())
+                    {
+                        int width = input.Cols;
+                        int height = input.Rows;
+
+                        points.Create(width * height, 1, MatType.CV_32FC3);
+                        centers.Create(k, 1, points.Type());
+                        output.Create(height, width, input.Type());
+
+                        // Input Image Data
+                        int i = 0;
+                        for (int y = 0; y < height; y++)
+                        {
+                            for (int x = 0; x < width; x++, i++)
+                            {
+                                Vec3f vec3f = new Vec3f
+                                {
+                                    Item0 = input.At<Vec3b>(y, x).Item0,
+                                    Item1 = input.At<Vec3b>(y, x).Item1,
+                                    Item2 = input.At<Vec3b>(y, x).Item2
+                                };
+
+                                points.Set<Vec3f>(i, vec3f);
+                            }
+                        }
+
+                        // Criteria:
+                        // – Stop the algorithm iteration if specified accuracy, epsilon, is reached.
+                        // – Stop the algorithm after the specified number of iterations, MaxIter.
+                        var criteria = new TermCriteria(type: CriteriaTypes.Eps | CriteriaTypes.MaxIter, maxCount: 10, epsilon: 1.0);
+
+                        // Finds centers of clusters and groups input samples around the clusters.
+                        Cv2.Kmeans(data: points, k: k, bestLabels: labels, criteria: criteria, attempts: 3, flags: KMeansFlags.PpCenters, centers: centers);
+
+                        // Output Image Data
+                        i = 0;
+                        for (int y = 0; y < height; y++)
+                        {
+                            for (int x = 0; x < width; x++, i++)
+                            {
+                                int index = labels.Get<int>(i);
+
+                                Vec3b vec3b = new Vec3b();
+
+                                int firstComponent = Convert.ToInt32(Math.Round(centers.At<Vec3f>(index).Item0));
+                                firstComponent = firstComponent > 255 ? 255 : firstComponent < 0 ? 0 : firstComponent;
+                                vec3b.Item0 = Convert.ToByte(firstComponent);
+
+                                int secondComponent = Convert.ToInt32(Math.Round(centers.At<Vec3f>(index).Item1));
+                                secondComponent = secondComponent > 255 ? 255 : secondComponent < 0 ? 0 : secondComponent;
+                                vec3b.Item1 = Convert.ToByte(secondComponent);
+
+                                int thirdComponent = Convert.ToInt32(Math.Round(centers.At<Vec3f>(index).Item2));
+                                thirdComponent = thirdComponent > 255 ? 255 : thirdComponent < 0 ? 0 : thirdComponent;
+                                vec3b.Item2 = Convert.ToByte(thirdComponent);
+
+                                output.Set<Vec3b>(y, x, vec3b);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return output;
         }
 
         private void setModel_btn_Click(object sender, RoutedEventArgs e)
@@ -519,6 +618,10 @@ namespace HSI
                     res = new Tuple<string, Mat>("CalculateRaster", RasterCalcs.CalculateRaster(Formula, bandPaths, backgroundWorker, satellite));
                     e.Result = res;
                     break;
+                case "k-means":
+                    res = new Tuple<string, Mat>("k-means", Segment());
+                    e.Result = res;
+                    break;
             }
             backgroundWorker.ReportProgress(0);
         }
@@ -528,31 +631,44 @@ namespace HSI
             var res = (Tuple<string, Mat>)e.Result;
             if (res.Item2 == null) return;
 
-            Tuple<BitmapSource, FileStream> obj = null;
             string savePath = "";
 
             if (res.Item1 == "ClassifyBarycentric" || res.Item1 == "ClassifyAngle" || res.Item1 == "ClassifyEuclid") {
                 PrepareAndSaveStats("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\3.txt");
                 savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\22.tif";
-                imageInfo = new ImageInfo(res.Item2, satellite, path, bandPaths, bandNames);
+                imageInfo.Dispose();
+                imageInfo = new ImageInfo(res.Item2, satellite, savePath, bandPaths, bandNames);
                 classify_btn.IsEnabled = true;
             }
             if (res.Item1 == "AddImage")
             {
                 savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\11.tif";
-                imageInfo = new ImageInfo(res.Item2, satellite, path, bandPaths, bandNames);
+                imageInfo.Dispose();
+                imageInfo = new ImageInfo(res.Item2, satellite, savePath, bandPaths, bandNames);
                 addImage_btn.IsEnabled = true;
             }
             if (res.Item1 == "CalculateRaster")
             {
                 savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\44.tif";
-                imageInfo = new ImageInfo(res.Item2, satellite, path, bandPaths, bandNames);
+                imageInfo.Dispose();
+                imageInfo = new ImageInfo(res.Item2, satellite, savePath, bandPaths, bandNames);
                 calcRaster_btn.IsEnabled = true;
             }
+            if (res.Item1 == "k-means")
+            {
+                savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\5.tif";
+                imageInfo.Dispose();
+                imageInfo = new ImageInfo(res.Item2, satellite, savePath, bandPaths, bandNames);
+                segment_btn.IsEnabled = true;
+            }
 
-            Cv2.ImWrite(savePath, imageInfo.GetMat());
-            scr_img.Source = imageInfo.GetBS();
+            Cv2.ImWrite(savePath, res.Item2);
+            //OpenSaveHelper.SaveTifImage(savePath, res.Item2);
+            scr_img.Source = imageInfo.GetBI();
+            scr_img.UpdateLayout();
             
+
+            GC.Collect();
         }
 
         private void BackgroundWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
@@ -573,11 +689,17 @@ namespace HSI
                 calcRaster_btn.IsEnabled = false;
                 Formula = dialog.Formula;
                 satellite = dialog.sat;
+                backgroundWorker.RunWorkerAsync("CalculateRaster");
+                //scr_img_scale.ScaleX = 0.05;
+                //scr_img_scale.ScaleY = 0.05;
             }
             else
+            {
+                calcRaster_btn.IsEnabled = true;
                 return;
+            }
 
-            backgroundWorker.RunWorkerAsync("CalculateRaster");
+            
         }
 
         private void hist_fromFile_click(object sender, RoutedEventArgs e)
@@ -594,7 +716,6 @@ namespace HSI
             }
             else return;
         }
-        
 
         private void openHDF_click(object sender, RoutedEventArgs e)
         {

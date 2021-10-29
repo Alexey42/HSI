@@ -26,16 +26,17 @@ namespace HSI
         static Mat CalcLandsat8(string formula, string[] bandPaths, BackgroundWorker backgroundWorker, Satellite satellite)
         {
             int progress = 0;
-            BitmapSource band = null;
+            int height = 0, width = 0;
             byte[][] bytes = new byte[3][];
 
             Parallel.For(0, 3, (i) => {
                 BitmapSource b = OpenSaveHelper.BandToBitmap_TIF(bandPaths[i]);
-                int stride = ((b.Format.BitsPerPixel + 7) / 8) * (int)b.Width;
+                height = (int)b.Height;
+                width = (int)b.Width;
+                int stride = (b.Format.BitsPerPixel + 7) / 8 * (int)b.Width;
                 int length = stride * (int)b.Height;
                 bytes[i] = new byte[length];
                 b.CopyPixels(bytes[i], stride, 0);
-                band = b;
             });
 
             if (bytes[0].Length != bytes[1].Length || bytes[0].Length != bytes[2].Length)
@@ -83,12 +84,10 @@ namespace HSI
                     backgroundWorker.ReportProgress(progress / (arrayLength / 100));
             }
 
-            Mat res = new Mat((int)band.Height, (int)band.Width, MatType.CV_8UC3, vecs);
-
             backgroundWorker.ReportProgress(100);
+            GC.Collect();
 
-            return res;
-
+            return new Mat(height, width, MatType.CV_8UC3, vecs);
         }
 
         static Mat CalcSentinel2(string formula, string[] bandPaths, BackgroundWorker backgroundWorker, Satellite satellite)
@@ -147,11 +146,10 @@ namespace HSI
                     backgroundWorker.ReportProgress(progress / (arrayLength / 100));
             }
 
-            Mat res = new Mat(band.Rows, band.Cols, MatType.CV_8UC3, vecs);
-
             backgroundWorker.ReportProgress(100);
+            GC.Collect();
 
-            return res;
+            return new Mat(band.Rows, band.Cols, MatType.CV_8UC3, vecs);
         }
     }
 }
