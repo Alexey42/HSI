@@ -11,7 +11,7 @@ using System.Runtime.InteropServices;
 
 namespace HSI
 {
-    class ImageInfo : IDisposable
+    public class ImageInfo : IDisposable
     {
         Mat mat;
         public int width;

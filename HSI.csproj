@@ -28,7 +28,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -193,6 +193,7 @@
     <Compile Include="Classify.xaml.cs">
       <DependentUpon>Classify.xaml</DependentUpon>
     </Compile>
+    <Compile Include="ClassifyImage.cs" />
     <Compile Include="Histogram.cs" />
     <Compile Include="HistogramWindow.xaml.cs">
       <DependentUpon>HistogramWindow.xaml</DependentUpon>
@@ -229,6 +230,7 @@
     <Compile Include="Segment.xaml.cs">
       <DependentUpon>Segment.xaml</DependentUpon>
     </Compile>
+    <Compile Include="SegmentImage.cs" />
     <Compile Include="VectorOperations.cs" />
     <Compile Include="PanAndZoom.cs" />
     <Compile Include="Pixels\IPixel.cs" />

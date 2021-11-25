@@ -34,6 +34,7 @@
             <MenuItem Header="Сохранить" Click="SaveImage_Click" Height="22"></MenuItem>
             <MenuItem Header="Функции" Height="22">
                 <MenuItem Header="Гистограмма файла" Click="hist_fromFile_click"></MenuItem>
+                <MenuItem Header="Обрезать изображение" Click="CropImage_Click"></MenuItem>
             </MenuItem>
         </Menu>
         <Canvas x:Name="canvas_main" Margin="10,72,198,0">

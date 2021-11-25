@@ -30,6 +30,8 @@ namespace HSI
             backgroundWorker.ReportProgress(5);
 
             Parallel.For(0, 3, (i) => {
+            //for (int i = 0; i < 3; i++)
+            //{
                 var b = OpenSaveHelper.BandToBitmap_TIF(bandPaths[i]);
                 height = (int)b.Height;
                 width = (int)b.Width;
@@ -37,6 +39,7 @@ namespace HSI
                 int length = stride * height;
                 bytes[i] = new byte[length];
                 b.CopyPixels(bytes[i], stride, 0);
+            //}
             });
 
             backgroundWorker.ReportProgress(10);

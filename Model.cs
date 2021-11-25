@@ -7,7 +7,7 @@ using OpenCvSharp;
 
 namespace HSI
 {
-    class Model
+    public class Model
     {
         public string name;
         public System.Windows.Media.Color color;

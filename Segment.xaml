@@ -8,6 +8,12 @@
         Title="Segment" Height="319.88" Width="297.59">
     <Grid>
         <Button Content="Ok" IsDefault="True" Click="Accept_Click" HorizontalAlignment="Left" Margin="106,233,0,0" VerticalAlignment="Top" Width="75"/>
+        <TextBox x:Name="t1" HorizontalAlignment="Left" Height="23" Margin="10,41,0,0" TextWrapping="Wrap" Text="0,5" VerticalAlignment="Top" Width="47"/>
+        <TextBox x:Name="t2" HorizontalAlignment="Left" Height="23" Margin="10,107,0,0" TextWrapping="Wrap" Text="300" VerticalAlignment="Top" Width="47"/>
+        <Label Content="Sigma (smoothing)" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top"/>
+        <Label Content="K (threshold)" HorizontalAlignment="Left" Margin="10,76,0,0" VerticalAlignment="Top"/>
+        <TextBox x:Name="t3" HorizontalAlignment="Left" Height="23" Margin="10,179,0,0" TextWrapping="Wrap" Text="50" VerticalAlignment="Top" Width="47"/>
+        <Label Content="Min (segments)" HorizontalAlignment="Left" Margin="10,148,0,0" VerticalAlignment="Top"/>
 
     </Grid>
 </Window>

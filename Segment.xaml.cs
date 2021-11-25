@@ -19,6 +19,9 @@ namespace HSI
     /// </summary>
     public partial class Segment : Window
     {
+        public float tr1, tr2;
+        public int tr3;
+
         public Segment()
         {
             InitializeComponent();
@@ -26,6 +29,9 @@ namespace HSI
 
         private void Accept_Click(object sender, RoutedEventArgs ez)
         {
+            tr1 = float.Parse(t1.Text.Replace(".", ","), System.Globalization.NumberStyles.Any);
+            tr2 = float.Parse(t2.Text.Replace(".", ","), System.Globalization.NumberStyles.Any);
+            tr3 = int.Parse(t3.Text);
             this.DialogResult = true;
         }
     }

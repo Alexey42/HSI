@@ -28,6 +28,7 @@ using System.Diagnostics;
 using System.ComponentModel;
 using System.Windows.Markup;
 using HSI.SatelliteInfo;
+using Ookii.Dialogs.Wpf;
 
 namespace HSI
 {
@@ -35,6 +36,7 @@ namespace HSI
     public partial class MainWindow : System.Windows.Window
     {
         bool makingWrapper = false;
+        bool settingModel = false;
         int[] wrapedArea;
         System.Windows.Point mouseStart;
         ImageInfo imageInfo;
@@ -47,7 +49,8 @@ namespace HSI
         string path;
         public string[] bandPaths = new string[3];
         public string[] bandNames = new string[3];
-        
+        float segSigma = 0, segK = 0;
+        int segMin = 0;
 
         public MainWindow()
         {
@@ -151,163 +154,6 @@ namespace HSI
             var elem = (Button)sender;
             models.Remove(models.Find((x) => { return x.name + "Button" == elem.Name; }));
             modelsPanel.Children.Remove(ui);
-        }
-
-        Mat ClassifyEuclid()
-        {
-            if (models.Count == 0) return null;
-
-            int[] coverCount = new int[models.Count];
-
-            int progress = 0;
-            Vec3b[] array = imageInfo.GetBytes();
-
-            Parallel.For(0, array.Length, (i) =>
-            {
-                if (array[i][0] != 0 || array[i][1] != 0 || array[i][2] != 0)
-                {
-                    for (int k = 0; k < models.Count; k++)
-                    {
-                        double a = Math.Pow(models[k].data[0, 0] - array[i][2], 2) / models[k].data[0, 0];
-                        double b = Math.Pow(models[k].data[1, 1] - array[i][1], 2) / models[k].data[1, 1];
-                        double c = Math.Pow(models[k].data[2, 2] - array[i][0], 2) / models[k].data[2, 2];
-                        double dist = Math.Sqrt(a + b + c);
-                        if (Math.Abs(dist) < classifyThreshold)
-                        {
-                            coverCount[k]++;
-                            array[i] = new Vec3b(models[k].userColor.B, models[k].userColor.G, models[k].userColor.R);
-                            break;
-                        }
-                    }
-                }
-                progress++;
-                if (progress % (array.Length / 100) == 0)
-                    backgroundWorker.ReportProgress(progress / (array.Length / 100));
-            });
-            backgroundWorker.ReportProgress(100);
-            Mat mat = new Mat(imageInfo.height, imageInfo.width, MatType.CV_8UC3, array);
-            var resolution = imageInfo.satellite.GetResolution("");
-            for (int i = 0; i < models.Count; i++)
-            {
-                models[i].coverPixels = coverCount[i];
-                models[i].coverMetres = Convert.ToInt64(coverCount[i] * resolution * resolution);
-                models[i].coverPercentage = coverCount[i] * 100d / array.Length;
-            }
-
-            GC.Collect();
-
-            return mat;
-        }
-
-        Mat ClassifyAngle()
-        {
-            if (models.Count == 0) return null;
-
-            int[] coverCount = new int[models.Count];
-
-            int progress = 0;
-            Vec3b[] array = imageInfo.GetBytes();
-
-            Parallel.For(0, array.Length, (i) =>
-            {
-                if (array[i][0] != 0 || array[i][1] != 0 || array[i][2] != 0)
-                {
-                    for (int k = 0; k < models.Count; k++)
-                    {
-                        double scalar = models[k].data[0, 0] * array[i][2] + models[k].data[1, 1] * array[i][1] +
-                            models[k].data[2, 2] * array[i][0];
-                        double a = Math.Sqrt(Math.Pow(models[k].data[0, 0], 2) + Math.Pow(models[k].data[1, 1], 2) + Math.Pow(models[k].data[2, 2], 2));
-                        double b = Math.Sqrt(Math.Pow(array[i][0], 2) + Math.Pow(array[i][1], 2) + Math.Pow(array[i][2], 2));
-                        double cos = scalar / (a * b);
-                        double angle = Math.Acos(cos) * 180 / Math.PI;
-                        if (Math.Abs(angle) < classifyThreshold)
-                        {
-                            coverCount[k]++;
-                            array[i] = new Vec3b(models[k].userColor.B, models[k].userColor.G, models[k].userColor.R);
-                            break;
-                        }
-                    }
-                }
-                progress++;
-                if (progress % (array.Length / 100) == 0)
-                    backgroundWorker.ReportProgress(progress / (array.Length / 100));
-            });
-            backgroundWorker.ReportProgress(100);
-            Mat mat = new Mat(imageInfo.height, imageInfo.width, MatType.CV_8UC3, array);
-            var resolution = imageInfo.satellite.GetResolution("");
-            for (int i = 0; i < models.Count; i++)
-            {
-                models[i].coverPixels = coverCount[i];
-                models[i].coverMetres = Convert.ToInt64(coverCount[i] * resolution * resolution);
-                models[i].coverPercentage = coverCount[i] * 100d / array.Length;
-            }
-
-            GC.Collect();
-
-            return mat;
-        }
-
-        Mat ClassifyBarycentric()
-        {
-            if (models.Count == 0) return null;
-
-            int[] coverCount = new int[models.Count];
-            List<Matrix> inverted_matrix = new List<Matrix>();
-            foreach (var model in models)
-            {
-                Matrix m = new Matrix(3, 3);
-                for (int i = 0; i < 3; i++)
-                    for (int j = 0; j < 3; j++)
-                        m[i, j] = model.data[j, i];
-
-                Matrix im = m.CreateInvertibleMatrix();
-                if (im == null)
-                {
-                    m[1, 0]++; m[0, 2]++; m[2, 1]++;
-                    im = m.CreateInvertibleMatrix();
-                }
-                inverted_matrix.Add(im);
-            }
-
-            int progress = 0;
-            Vec3b[] array = imageInfo.GetBytes();
-            
-            Parallel.For(0, array.Length, (i) =>
-            {
-                if (array[i][0] != 0 || array[i][1] != 0 || array[i][2] != 0)
-                {
-                    Matrix r = new Matrix(3, 1);
-                    r[0, 0] = array[i][2]; r[1, 0] = array[i][1]; r[2, 0] = array[i][0];
-
-                    for (int k = 0; k < models.Count; k++)
-                    {
-                        Matrix res = inverted_matrix[k] * r;
-                        if (Math.Abs(res[0, 0]) < classifyThreshold && Math.Abs(res[1, 0]) < classifyThreshold 
-                            && Math.Abs(res[2, 0]) < classifyThreshold)
-                        {
-                            coverCount[k]++;
-                            array[i] = new Vec3b(models[k].userColor.B, models[k].userColor.G, models[k].userColor.R);
-                            break;
-                        }
-                    }
-                }
-                progress++;
-                if (progress % (array.Length / 100) == 0)
-                    backgroundWorker.ReportProgress(progress / (array.Length / 100));
-            });
-            backgroundWorker.ReportProgress(100);
-            Mat mat = new Mat(imageInfo.height, imageInfo.width, MatType.CV_8UC3, array);
-            var resolution = imageInfo.satellite.GetResolution("");
-            for (int i = 0; i < models.Count; i++)
-            {
-                models[i].coverPixels = coverCount[i];
-                models[i].coverMetres = Convert.ToInt64(coverCount[i] * resolution * resolution);
-                models[i].coverPercentage = coverCount[i] * 100d / array.Length;
-            }
-
-            GC.Collect();
-
-            return mat;
         }
 
         byte Clamp(byte x, byte min, byte max)
@@ -450,13 +296,31 @@ namespace HSI
                     }
                 }
 
-                ModelAdding dialog = new ModelAdding();
-                if (dialog.ShowDialog() == true)
+                if (settingModel)
                 {
-                    SetModel(meanR, meanG, meanB, dialog.Red, dialog.Green, dialog.Blue, dialog.ModelName.Replace(" ", "_"));
+                    ModelAdding dialog = new ModelAdding();
+                    if (dialog.ShowDialog() == true)
+                    {
+                        SetModel(meanR, meanG, meanB, dialog.Red, dialog.Green, dialog.Blue, dialog.ModelName.Replace(" ", "_"));
+                    }
+                    settingModel = false;
                 }
                 else
-                    return;
+                {
+                    VistaFolderBrowserDialog ofd = new VistaFolderBrowserDialog();
+                    ofd.RootFolder = Environment.SpecialFolder.Recent;
+                    if (ofd.ShowDialog() == true)
+                    {
+                        Mat res = new Mat(wrapedY, wrapedX, imageInfo.GetMat().Type(), wrapedBytes);
+                        imageInfo.Dispose();
+                        imageInfo = new ImageInfo(res, satellite, ofd.SelectedPath + "\\croped.tif", bandPaths, bandNames);
+                        Cv2.ImWrite(ofd.SelectedPath + "\\croped.tif", res);
+                        //OpenSaveHelper.SaveTifImage(savePath, res.Item2);
+                        scr_img.Source = imageInfo.GetBI();
+                        scr_img.UpdateLayout();
+                    }
+                    
+                }
             }
         }
 
@@ -485,7 +349,10 @@ namespace HSI
             Segment dialog = new Segment();
             if (dialog.ShowDialog() == true)
             {
-                backgroundWorker.RunWorkerAsync("k-means");
+                segSigma = dialog.tr1;
+                segK = dialog.tr2;
+                segMin = dialog.tr3;
+                backgroundWorker.RunWorkerAsync("GBSegmentationSpectralAngle");
             }
             else
             {
@@ -494,86 +361,11 @@ namespace HSI
             }
         }
 
-        Mat Segment()
-        {
-            Mat input = imageInfo.GetMat();
-            Mat output = new Mat();
-            int k = 5;
-            using (Mat points = new Mat())
-            {
-                using (Mat labels = new Mat())
-                {
-                    using (Mat centers = new Mat())
-                    {
-                        int width = input.Cols;
-                        int height = input.Rows;
-
-                        points.Create(width * height, 1, MatType.CV_32FC3);
-                        centers.Create(k, 1, points.Type());
-                        output.Create(height, width, input.Type());
-
-                        // Input Image Data
-                        int i = 0;
-                        for (int y = 0; y < height; y++)
-                        {
-                            for (int x = 0; x < width; x++, i++)
-                            {
-                                Vec3f vec3f = new Vec3f
-                                {
-                                    Item0 = input.At<Vec3b>(y, x).Item0,
-                                    Item1 = input.At<Vec3b>(y, x).Item1,
-                                    Item2 = input.At<Vec3b>(y, x).Item2
-                                };
-
-                                points.Set<Vec3f>(i, vec3f);
-                            }
-                        }
-
-                        // Criteria:
-                        // – Stop the algorithm iteration if specified accuracy, epsilon, is reached.
-                        // – Stop the algorithm after the specified number of iterations, MaxIter.
-                        var criteria = new TermCriteria(type: CriteriaTypes.Eps | CriteriaTypes.MaxIter, maxCount: 10, epsilon: 1.0);
-
-                        // Finds centers of clusters and groups input samples around the clusters.
-                        Cv2.Kmeans(data: points, k: k, bestLabels: labels, criteria: criteria, attempts: 3, flags: KMeansFlags.PpCenters, centers: centers);
-
-                        // Output Image Data
-                        i = 0;
-                        for (int y = 0; y < height; y++)
-                        {
-                            for (int x = 0; x < width; x++, i++)
-                            {
-                                int index = labels.Get<int>(i);
-
-                                Vec3b vec3b = new Vec3b();
-
-                                int firstComponent = Convert.ToInt32(Math.Round(centers.At<Vec3f>(index).Item0));
-                                firstComponent = firstComponent > 255 ? 255 : firstComponent < 0 ? 0 : firstComponent;
-                                vec3b.Item0 = Convert.ToByte(firstComponent);
-
-                                int secondComponent = Convert.ToInt32(Math.Round(centers.At<Vec3f>(index).Item1));
-                                secondComponent = secondComponent > 255 ? 255 : secondComponent < 0 ? 0 : secondComponent;
-                                vec3b.Item1 = Convert.ToByte(secondComponent);
-
-                                int thirdComponent = Convert.ToInt32(Math.Round(centers.At<Vec3f>(index).Item2));
-                                thirdComponent = thirdComponent > 255 ? 255 : thirdComponent < 0 ? 0 : thirdComponent;
-                                vec3b.Item2 = Convert.ToByte(thirdComponent);
-
-                                output.Set<Vec3b>(y, x, vec3b);
-                            }
-                        }
-                    }
-                }
-            }
-
-            return output;
-        }
-
         private void setModel_btn_Click(object sender, RoutedEventArgs e)
         {
-
             if (makingWrapper)
             {
+                settingModel = false;
                 setModel_btn.Background = System.Windows.Media.Brushes.LightGray;
                 zoom_border.isActive = true;
                 makingWrapper = false;
@@ -582,6 +374,7 @@ namespace HSI
             }
             else
             {
+                settingModel = true;
                 setModel_btn.Background = System.Windows.Media.Brushes.PaleGreen;
                 zoom_border.isActive = false;
                 makingWrapper = true;
@@ -600,26 +393,35 @@ namespace HSI
             switch ((string)e.Argument)
             {
                 case "ClassifyBarycentric":
-                    res = new Tuple<string, Mat>("ClassifyBarycentric", ClassifyBarycentric());
+                    res = new Tuple<string, Mat>("ClassifyBarycentric", 
+                        ClassifyImage.ClassifyBarycentric(classifyThreshold, models, imageInfo, backgroundWorker));
                     e.Result = res;
                     break;
                 case "ClassifyAngle":
-                    res = new Tuple<string, Mat>("ClassifyAngle", ClassifyAngle());
+                    res = new Tuple<string, Mat>("ClassifyAngle", 
+                        ClassifyImage.ClassifyAngle(classifyThreshold, models, imageInfo, backgroundWorker));
                     e.Result = res;
                     break;
                 case "ClassifyEuclid":
-                    res = new Tuple<string, Mat>("ClassifyEuclid", ClassifyEuclid());
+                    res = new Tuple<string, Mat>("ClassifyEuclid", 
+                        ClassifyImage.ClassifyEuclid(classifyThreshold, models, imageInfo, backgroundWorker));
                     e.Result = res;
                     break;
                 case "AddImage":
-                    e.Result = new Tuple<string, Mat>("AddImage", ImageBuilder.BuildImage(bandPaths, satellite, backgroundWorker));
+                    e.Result = new Tuple<string, Mat>("AddImage", 
+                        ImageBuilder.BuildImage(bandPaths, satellite, backgroundWorker));
                     break;
                 case "CalculateRaster":
-                    res = new Tuple<string, Mat>("CalculateRaster", RasterCalcs.CalculateRaster(Formula, bandPaths, backgroundWorker, satellite));
+                    res = new Tuple<string, Mat>("CalculateRaster", 
+                        RasterCalcs.CalculateRaster(Formula, bandPaths, backgroundWorker, satellite));
                     e.Result = res;
                     break;
-                case "k-means":
-                    res = new Tuple<string, Mat>("k-means", Segment());
+                case "GBSegmentationSpectralAngle":
+                    int ccsNum;
+                    //Mat m = new Mat("C:\\Users\\55000\\Downloads\\test.jpg");
+                    Mat m = new Mat("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\croped.tif");
+                    res = new Tuple<string, Mat>("GBSegmentationSpectralAngle", 
+                        SegmentImage.SegmentAngle(m, segSigma, segK, segMin, out ccsNum));
                     e.Result = res;
                     break;
             }
@@ -654,7 +456,7 @@ namespace HSI
                 imageInfo = new ImageInfo(res.Item2, satellite, savePath, bandPaths, bandNames);
                 calcRaster_btn.IsEnabled = true;
             }
-            if (res.Item1 == "k-means")
+            if (res.Item1 == "GBSegmentationSpectralAngle")
             {
                 savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\5.tif";
                 imageInfo.Dispose();
@@ -727,6 +529,22 @@ namespace HSI
                 //var dataset = Gdal.Open(ofd.FileName, Access.GA_ReadOnly);
             }
             
+        }
+
+        private void CropImage_Click(object sender, RoutedEventArgs e)
+        {
+            if (makingWrapper)
+            {
+                zoom_border.isActive = true;
+                makingWrapper = false;
+                rect_for_wrap.Width = 0;
+                rect_for_wrap.Height = 0;
+            }
+            else
+            {
+                zoom_border.isActive = false;
+                makingWrapper = true;
+            }
         }
 
         private void SaveImage_Click(object sender, RoutedEventArgs e)
