@@ -421,7 +421,7 @@ namespace HSI
                     //Mat m = new Mat("C:\\Users\\55000\\Downloads\\test.jpg");
                     Mat m = new Mat("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\croped.tif");
                     res = new Tuple<string, Mat>("GBSegmentationSpectralAngle", 
-                        SegmentImage.SegmentAngle(m, segSigma, segK, segMin, out ccsNum));
+                        SegmentImage.SegmentAngle(m, segSigma, segK, segMin, out ccsNum, backgroundWorker));
                     e.Result = res;
                     break;
             }

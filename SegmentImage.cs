@@ -1,6 +1,9 @@
 ﻿using OpenCvSharp;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -83,10 +86,11 @@ namespace HSI
             P. Felzenszwalb, D. Huttenlocher
             International Journal of Computer Vision, Vol. 59, No. 2, September 2004 
         */
-        public static Mat SegmentAngle(Mat image, float sigma, float c, int min_size, out int ccsNum)
+        public static Mat SegmentAngle(Mat image, float sigma, float c, int min_size, out int ccsNum, BackgroundWorker backgroundWorker)
         {
             int width = image.Cols;
             int height = image.Rows;
+            int verticesNum = width * height;
             
             Mat smoothed = image.GaussianBlur(Size.Zero, sigma);
             Vec3b[] array;
@@ -94,8 +98,9 @@ namespace HSI
             smoothed.Dispose();
             //int size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(Edge));
             //List<Edge> edges = new List<Edge>(width * height * 4);
-            Edge[] edges = new Edge[width * height * 4];
+            Edge[] edges = new Edge[verticesNum * 4];
             int edgesNum = 0;
+            backgroundWorker.ReportProgress(5);
 
             for (int y = 0; y < height; y++)
             {
@@ -140,10 +145,10 @@ namespace HSI
                 }
             }
 
+            backgroundWorker.ReportProgress(30);
             //edges.Sort((x, y) => x.w.CompareTo(y.w));
             Array.Sort(edges, (x, y) => x.w.CompareTo(y.w));
 
-            int verticesNum = width * height;
             Universe u = new Universe(verticesNum);
             float[] thresholds = new float[verticesNum];
 
@@ -165,6 +170,7 @@ namespace HSI
                     }
                 }
             }
+            backgroundWorker.ReportProgress(60);
 
             // post process small components
             for (int i = 0; i < edgesNum; i++)
@@ -175,23 +181,35 @@ namespace HSI
                     u.Join(a, b);
             }
 
-            ccsNum = u.GetNumSets();
-            Vec3b[] colors = new Vec3b[verticesNum];
+            ccsNum = u.GetNumSets(); // number of connected components in the segmentation
 
-            for (int i = 0; i < verticesNum; i++) {
-                var randomBytes = new byte[3];
-                new Random().NextBytes(randomBytes);
-                colors[i] = new Vec3b(randomBytes[0], randomBytes[1], randomBytes[2]);
-            }
-            
+            Vec3i[] colors = new Vec3i[verticesNum]; // or sparse arrays if necessary
+            int[] div = new int[verticesNum];
+
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++)
                 {
                     int comp = u.Find(y * width + x);
-                    array[y * width + x] = colors[comp];
+                    div[comp]++;
+                    colors[comp].Item0 += array[y * width + x].Item0;
+                    colors[comp].Item1 += array[y * width + x].Item1;
+                    colors[comp].Item2 += array[y * width + x].Item2;
                 }
             }
+            backgroundWorker.ReportProgress(80);
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    int comp = u.Find(y * width + x);
+                    array[y * width + x].Item0 = (byte)(colors[comp].Item0 / div[comp]);
+                    array[y * width + x].Item1 = (byte)(colors[comp].Item1 / div[comp]);
+                    array[y * width + x].Item2 = (byte)(colors[comp].Item2 / div[comp]);
+                }
+            }
+            backgroundWorker.ReportProgress(100);
 
             Mat result = new Mat(height, width, MatType.CV_8UC3, array);
             return result;
