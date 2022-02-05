@@ -17,11 +17,11 @@ namespace HSI
     /// <summary>
     /// Логика взаимодействия для ChooseSatellite.xaml
     /// </summary>
-    public partial class ChooseSatellite : Window
+    public partial class ChooseSatelliteWindow : Window
     {
         public string camera = "Landsat 8";
 
-        public ChooseSatellite()
+        public ChooseSatelliteWindow()
         {
             InitializeComponent();
         }

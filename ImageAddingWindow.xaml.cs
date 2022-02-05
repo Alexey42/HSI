@@ -15,31 +15,30 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using Ookii.Dialogs.Wpf;
 using HSI.SatelliteInfo;
+using System.Globalization;
 
 namespace HSI
 {
     /// <summary>
     /// Логика взаимодействия для AddImage.xaml
     /// </summary>
-    public partial class CalcRaster : Window
+    public partial class ImageAddingWindow : Window
     {
-        public string path = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1"; // В релизе оставить ""
+        public string path = ""; // В релизе оставить ""
         public string[] BandPaths = new string[3];
         public string Camera;
         private VistaFolderBrowserDialog openFileDialog;
         public Satellite sat;
-        public string Formula;
 
-        public CalcRaster()
+        public ImageAddingWindow()
         {
             InitializeComponent();
         }
 
-        private void Accept_Click(object sender, RoutedEventArgs ez)
+        private void Accept_Click(object sender, RoutedEventArgs e)
         {
             ListBoxItem l = (ListBoxItem)cam.SelectedItem;
             Camera = l.Content.ToString();
-            Formula = formula.Text;
 
             Parse(openFileDialog);
 
@@ -56,6 +55,9 @@ namespace HSI
                     break;
                 case "Sentinel 2":
                     sat = new Sentinel2();
+                    break;
+                case "Aviris":
+                    sat = new Aviris();
                     break;
             }
         }
@@ -79,6 +81,7 @@ namespace HSI
         {
             if (Camera == "Landsat 8") sat.SetDirectory("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1"); // В релизе этой строки быть не должно
             if (Camera == "Sentinel 2") sat.SetDirectory("D:\\HSI_images\\S2B_MSIL1C_20190602T080619_N0207_R078_T38VMH_20190602T102902.SAFE"); // В релизе этой строки быть не должно
+            if (Camera == "Aviris") sat.SetDirectory(@"D:\HSI_images\f080611t01p00r07rdn_c"); // В релизе этой строки быть не должно
             if (ch1.Text != "...")
             {
                 BandPaths[0] = sat.FindBandByNumber(ch1.Text);
@@ -95,6 +98,7 @@ namespace HSI
                 ch3_lbl.Content = sat.GetBandNameByNumber(ch3.Text); // В релизе убрать
             }
         }
+
 
         private void channel_btn_Click(object sender, RoutedEventArgs e)
         {
@@ -148,15 +152,6 @@ namespace HSI
                     ch3_lbl.Content = name;
                     break;
             }
-        }
-
-        void AddSymbol(object sender, RoutedEventArgs e)
-        {
-            Button button = (Button)sender;
-            string op = (string)button.Content;
-
-            formula.Text += op + " ";
-
         }
     }
 }

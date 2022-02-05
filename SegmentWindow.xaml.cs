@@ -17,12 +17,12 @@ namespace HSI
     /// <summary>
     /// Логика взаимодействия для Segment.xaml
     /// </summary>
-    public partial class Segment : Window
+    public partial class SegmentWindow : Window
     {
         public float tr1, tr2;
         public int tr3;
 
-        public Segment()
+        public SegmentWindow()
         {
             InitializeComponent();
         }

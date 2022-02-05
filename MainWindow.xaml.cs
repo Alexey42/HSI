@@ -66,7 +66,7 @@ namespace HSI
         private void Button_Click(object sender, RoutedEventArgs e)
         {
             addImage_btn.IsEnabled = false;
-            ImageAdding dialog = new ImageAdding();
+            ImageAddingWindow dialog = new ImageAddingWindow();
             if (dialog.ShowDialog() == true)
             {
                 bandPaths = dialog.BandPaths;
@@ -298,7 +298,7 @@ namespace HSI
 
                 if (settingModel)
                 {
-                    ModelAdding dialog = new ModelAdding();
+                    ModelAddingWindow dialog = new ModelAddingWindow();
                     if (dialog.ShowDialog() == true)
                     {
                         SetModel(meanR, meanG, meanB, dialog.Red, dialog.Green, dialog.Blue, dialog.ModelName.Replace(" ", "_"));
@@ -327,7 +327,7 @@ namespace HSI
         private void classify_btn_Click(object sender, RoutedEventArgs e)
         {
             classify_btn.IsEnabled = false;
-            Classify dialog = new Classify();
+            ClassifyWindow dialog = new ClassifyWindow();
             if (dialog.ShowDialog() == true)
             {
                 classifyMethod = dialog.Method;
@@ -346,7 +346,7 @@ namespace HSI
         private void segment_btn_Click(object sender, RoutedEventArgs e)
         {
             segment_btn.IsEnabled = false;
-            Segment dialog = new Segment();
+            SegmentWindow dialog = new SegmentWindow();
             if (dialog.ShowDialog() == true)
             {
                 segSigma = dialog.tr1;
@@ -386,6 +386,102 @@ namespace HSI
 
         }
 
+        public Mat EMD(string[] paths, BackgroundWorker backgroundWorker, Satellite satellite)
+        {
+            Mat img = new Mat();
+            OpenFileDialog ofd = new OpenFileDialog();
+            if (imageInfo.path != "")
+                ofd.InitialDirectory = imageInfo.path;
+            if (ofd.ShowDialog() == true)
+            {
+                img = new Mat(ofd.FileName);
+            }
+            else
+                return img;
+
+            Vec3b[] bytes;
+            img.GetArray(out bytes);
+            int width = img.Width;
+            int height = img.Height;
+            int w = 3;
+            int q = 0;
+            int Fi = 0;
+            int Ri = 0;
+            int pU = 2;
+            int pL = 2;
+            int max = -1;
+            int min = 2 * w;
+            byte[] mode = new byte[width * height];
+
+            while (q < 1) {
+                for (int i = 0; i < bytes.Length; i++)
+                {
+                    Ri = 0;
+                    for (int k1 = -w / 2; k1 < w / 2; k1++)
+                        for (int k2 = -w / 2; k2 < w / 2; k2++)
+                        {
+                            int x = i % width + k1;
+                            int y = i / width + k2;
+                            if (x < 0) x = 0;
+                            if (y < 0) y = 0;
+                            if (x >= width) x = width - 1;
+                            if (y >= height) y = height - 1;
+                            //int ind = i + k2;
+                            //if (ind < 0)
+                            //    ind = 0;
+                            //if (ind >= bytes.Length)
+                            //    ind = bytes.Length - 1;
+                            int cur = bytes[x + y * width][0];
+                            Ri += cur;
+                        }
+                    Ri /= w;
+                    if (q == 0) Fi = bytes[i][0];
+                    mode[i] = (byte)(Fi - Ri);
+                    //Fi = Ri;
+                }
+                
+                max = -1;
+                min = 2 * w;
+                pL = 0;
+                pU = 0;
+                for (int i = 0; i < bytes.Length; i++)
+                {
+                    int cMin = 0;
+                    int cMax = 0;
+                    for (int k1 = -w / 2; k1 < w / 2; k1++)
+                        for (int k2 = -w / 2; k2 < w / 2; k2++)
+                        {
+                            int x = i % width + k1;
+                            int y = i / width + k2;
+                            if (x < 0) x = 0;
+                            if (y < 0) y = 0;
+                            if (x >= width) x = width - 1;
+                            if (y >= height) y = height - 1;
+                            int cur = bytes[x + y * width][0];
+                            if (cur == max) cMax++;
+                            if (cur > max) max = cur;
+                            if (cur == min) cMin++;
+                            if (cur < min) min = cur;
+                        }
+                    if (cMin < 2 * w && cMin == 0) pL++;
+                    if (cMax > -1 && cMax == 0) pU++;
+                }
+
+                //if (pL >= 2 && pU >= 2)
+                //{
+                    q++;
+                //}
+            }
+
+            return new Mat(height, width, MatType.CV_8UC1, mode);
+        }
+
+        private void EMD_btn_Click(object sender, RoutedEventArgs e)
+        {
+            EMD_btn.IsEnabled = false;
+            backgroundWorker.RunWorkerAsync("EMD");
+        }
+
         private void BackgroundWorker_DoWork(object sender, DoWorkEventArgs e)
         {
             Tuple<string, Mat> res;
@@ -421,7 +517,12 @@ namespace HSI
                     //Mat m = new Mat("C:\\Users\\55000\\Downloads\\test.jpg");
                     Mat m = new Mat("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\croped.tif");
                     res = new Tuple<string, Mat>("GBSegmentationSpectralAngle", 
-                        SegmentImage.SegmentAngle(m, segSigma, segK, segMin, out ccsNum, backgroundWorker));
+                        SegmentImage.SegmentAngle(imageInfo.GetMat(), segSigma, segK, segMin, out ccsNum, backgroundWorker));
+                    e.Result = res;
+                    break;
+                case "EMD":
+                    res = new Tuple<string, Mat>("EMD",
+                        EMD(bandPaths, backgroundWorker, satellite));
                     e.Result = res;
                     break;
             }
@@ -463,7 +564,14 @@ namespace HSI
                 imageInfo = new ImageInfo(res.Item2, satellite, savePath, bandPaths, bandNames);
                 segment_btn.IsEnabled = true;
             }
-
+            if (res.Item1 == "EMD")
+            {
+                savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\6.tif";
+                imageInfo.Dispose();
+                imageInfo = new ImageInfo(res.Item2, satellite, savePath, bandPaths, bandNames);
+                EMD_btn.IsEnabled = true;
+            }
+            
             Cv2.ImWrite(savePath, res.Item2);
             //OpenSaveHelper.SaveTifImage(savePath, res.Item2);
             scr_img.Source = imageInfo.GetBI();
@@ -480,7 +588,7 @@ namespace HSI
 
         private void calcRaster_btn_Click(object sender, RoutedEventArgs e)
         {
-            CalcRaster dialog = new CalcRaster();
+            CalcRasterWindow dialog = new CalcRasterWindow();
             if (dialog.ShowDialog() == true)
             {
                 bandPaths = dialog.BandPaths;
@@ -509,7 +617,7 @@ namespace HSI
             OpenFileDialog ofd = new OpenFileDialog();
             if (imageInfo.path != "")
                 ofd.InitialDirectory = imageInfo.path;
-            ChooseSatellite chooseSatellite = new ChooseSatellite();
+            ChooseSatelliteWindow chooseSatellite = new ChooseSatelliteWindow();
             
             if (ofd.ShowDialog() == true && chooseSatellite.ShowDialog() == true)
             {

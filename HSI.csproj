@@ -160,15 +160,15 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Page Include="CalcRaster.xaml">
+    <Page Include="CalcRasterWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="ChooseSatellite.xaml">
+    <Page Include="ChooseSatelliteWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Classify.xaml">
+    <Page Include="ClassifyWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -176,7 +176,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="ImageAdding.xaml">
+    <Page Include="ImageAddingWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -184,22 +184,22 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Compile Include="CalcRaster.xaml.cs">
-      <DependentUpon>CalcRaster.xaml</DependentUpon>
+    <Compile Include="CalcRasterWindow.xaml.cs">
+      <DependentUpon>CalcRasterWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="ChooseSatellite.xaml.cs">
-      <DependentUpon>ChooseSatellite.xaml</DependentUpon>
+    <Compile Include="ChooseSatelliteWindow.xaml.cs">
+      <DependentUpon>ChooseSatelliteWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Classify.xaml.cs">
-      <DependentUpon>Classify.xaml</DependentUpon>
+    <Compile Include="ClassifyWindow.xaml.cs">
+      <DependentUpon>ClassifyWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="ClassifyImage.cs" />
     <Compile Include="Histogram.cs" />
     <Compile Include="HistogramWindow.xaml.cs">
       <DependentUpon>HistogramWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="ImageAdding.xaml.cs">
-      <DependentUpon>ImageAdding.xaml</DependentUpon>
+    <Compile Include="ImageAddingWindow.xaml.cs">
+      <DependentUpon>ImageAddingWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
@@ -208,8 +208,8 @@
     <Compile Include="ImageBuilder.cs" />
     <Compile Include="ImageInfo.cs" />
     <Compile Include="Model.cs" />
-    <Compile Include="ModelAdding.xaml.cs">
-      <DependentUpon>ModelAdding.xaml</DependentUpon>
+    <Compile Include="ModelAddingWindow.xaml.cs">
+      <DependentUpon>ModelAddingWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="OpenSaveHelper.cs" />
     <Compile Include="RasterCalcs.cs" />
@@ -224,11 +224,12 @@
     <Compile Include="RPN\RPNToken.cs" />
     <Compile Include="RPN\RPNTokenType.cs" />
     <Compile Include="RPN\RPNUtils.cs" />
+    <Compile Include="SatelliteInfo\Aviris.cs" />
     <Compile Include="SatelliteInfo\Landsat8.cs" />
     <Compile Include="SatelliteInfo\Satellite.cs" />
     <Compile Include="SatelliteInfo\Sentinel2.cs" />
-    <Compile Include="Segment.xaml.cs">
-      <DependentUpon>Segment.xaml</DependentUpon>
+    <Compile Include="SegmentWindow.xaml.cs">
+      <DependentUpon>SegmentWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="SegmentImage.cs" />
     <Compile Include="VectorOperations.cs" />
@@ -238,11 +239,11 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Page Include="ModelAdding.xaml">
+    <Page Include="ModelAddingWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Segment.xaml">
+    <Page Include="SegmentWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

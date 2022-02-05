@@ -15,30 +15,31 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using Ookii.Dialogs.Wpf;
 using HSI.SatelliteInfo;
-using System.Globalization;
 
 namespace HSI
 {
     /// <summary>
     /// Логика взаимодействия для AddImage.xaml
     /// </summary>
-    public partial class ImageAdding : Window
+    public partial class CalcRasterWindow : Window
     {
         public string path = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1"; // В релизе оставить ""
         public string[] BandPaths = new string[3];
         public string Camera;
         private VistaFolderBrowserDialog openFileDialog;
         public Satellite sat;
+        public string Formula;
 
-        public ImageAdding()
+        public CalcRasterWindow()
         {
             InitializeComponent();
         }
 
-        private void Accept_Click(object sender, RoutedEventArgs e)
+        private void Accept_Click(object sender, RoutedEventArgs ez)
         {
             ListBoxItem l = (ListBoxItem)cam.SelectedItem;
             Camera = l.Content.ToString();
+            Formula = formula.Text;
 
             Parse(openFileDialog);
 
@@ -95,7 +96,6 @@ namespace HSI
             }
         }
 
-
         private void channel_btn_Click(object sender, RoutedEventArgs e)
         {
             Button button = (Button)sender;
@@ -148,6 +148,15 @@ namespace HSI
                     ch3_lbl.Content = name;
                     break;
             }
+        }
+
+        void AddSymbol(object sender, RoutedEventArgs e)
+        {
+            Button button = (Button)sender;
+            string op = (string)button.Content;
+
+            formula.Text += op + " ";
+
         }
     }
 }

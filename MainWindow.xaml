@@ -28,6 +28,7 @@
                     <MenuItem Header=".png" Click="OpenImage_Click"></MenuItem>
                     <MenuItem Header=".jpeg" Click="OpenImage_Click"></MenuItem>
                     <MenuItem Header=".jpeg2000" Click="OpenImage_Click"></MenuItem>
+                    <MenuItem Header="Other" Click="OpenImage_Click"></MenuItem>
                 </MenuItem>
                 <MenuItem Header="Очистить" Click="ClearCanvas"></MenuItem>
                 </MenuItem>
@@ -62,12 +63,12 @@
             </Rectangle>
         </Canvas>
         <Button x:Name="setModel_btn" Content="Добавить эталон" Click="setModel_btn_Click" HorizontalAlignment="Left" Margin="171,35,0,0" VerticalAlignment="Top" Width="99"/>
-        <Button x:Name="classify_btn" Content="Классификация" Click="classify_btn_Click" HorizontalAlignment="Left" Margin="300,35,0,0" VerticalAlignment="Top" Width="98"/>
+        <Button x:Name="classify_btn" Content="Классификация" Click="classify_btn_Click" HorizontalAlignment="Left" Margin="290,35,0,0" VerticalAlignment="Top" Width="98"/>
         <StackPanel x:Name="modelsPanel" HorizontalAlignment="Right" Height="192" Margin="0,72,10,0" VerticalAlignment="Top" Width="98" />
         <!--<Button Content="Статистика" Click="GetStatistic_btn" HorizontalAlignment="Left" Margin="592,35,0,0" VerticalAlignment="Top" Width="74"/>-->
         <ProgressBar x:Name="progressBar" HorizontalAlignment="Left" Height="10" Margin="682,4,0,0" VerticalAlignment="Top" Width="100"/>
-        <Button x:Name="calcRaster_btn" Content="Калькулятор растров" Click="calcRaster_btn_Click" HorizontalAlignment="Left" Margin="435,35,0,0" VerticalAlignment="Top" Width="124"/>
-        <Button x:Name="hdf_btn" Content="HDF5" Click="openHDF_click" HorizontalAlignment="Left" Margin="588,35,0,0" VerticalAlignment="Top" Width="77"/>
+        <Button x:Name="calcRaster_btn" Content="Калькулятор растров" Click="calcRaster_btn_Click" HorizontalAlignment="Left" Margin="408,35,0,0" VerticalAlignment="Top" Width="124"/>
+        <Button x:Name="EMD_btn" Content="EMD" Click="EMD_btn_Click" HorizontalAlignment="Left" Margin="552,35,0,0" VerticalAlignment="Top" Width="56"/>
         <Button x:Name="segment_btn" Content="Сегментация" Click="segment_btn_Click" HorizontalAlignment="Left" Margin="684,35,0,0" VerticalAlignment="Top" Width="98"/>
     </Grid>
 </Window>

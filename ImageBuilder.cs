@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -18,6 +20,8 @@ namespace HSI
                 return BuildLandsat8(bandPaths, satellite, backgroundWorker);
             if (satellite.name == "Sentinel 2")
                 return BuildSentinel2(bandPaths, satellite, backgroundWorker);
+            if (satellite.name == "Aviris")
+                return BuildAviris(bandPaths, satellite, backgroundWorker);
 
             return null;
         }
@@ -100,6 +104,153 @@ namespace HSI
             GC.Collect();
 
             return new Mat(band.Rows, band.Cols, MatType.CV_8UC3, vecs);
+        }
+
+        static Mat BuildAviris(string[] bandPaths, Satellite satellite, BackgroundWorker backgroundWorker)
+        {
+            int red = 9; // int.Parse(bandPaths[0]);
+            int green = 19; // int.Parse(bandPaths[1]);
+            int blue = 29; //int.Parse(bandPaths[2]);
+            int bands = 224;
+            Aviris sat = (Aviris)satellite;
+            string path = sat.imgPath;
+            int width = sat.width;
+            int height = sat.height;
+            byte[] bytes = File.ReadAllBytes(path);
+            /*
+            if (red != 0 && green != 0 && blue != 0)
+            {
+                byte[] res = new byte[height * width * 6];
+                for (int c1 = red, c2 = green, c3 = blue, j = 0; j < height * width * 6; c1 += bands * 2, c2 += bands * 2, c3 += bands * 2, j += 6)
+                {
+                    res[j] = bytes[c1];
+                    res[j + 1] = bytes[c1 + 1];
+                    res[j + 2] = bytes[c2 + 2];
+                    res[j + 3] = bytes[c2 + 3];
+                    res[j + 4] = bytes[c3 + 4];
+                    res[j + 5] = bytes[c3 + 5];
+                    //res[j] = (byte)(BitConverter.ToInt16(new byte[] { bytes[c1], bytes[c1 + 1] }, 0) / 256.0 * 3.3);// Не работает на чётных каналах
+                    //res[j + 1] = (byte)(BitConverter.ToInt16(new byte[] { bytes[c2], bytes[c2 + 1] }, 0) / 256.0 * 3.3);
+                    //res[j + 2] = (byte)(BitConverter.ToInt16(new byte[] { bytes[c3], bytes[c3 + 1] }, 0) / 256.0 * 3.3);
+                }
+                Mat mat1 = new Mat(height, width, MatType.CV_16SC3, res);
+                Mat mat = mat1.Clone();
+                mat.ConvertTo(mat, MatType.CV_8UC3, 1.0 / 256.0 * 5.0);
+                return mat;
+            }
+            else if (red != 0 && green == 0 && blue == 0)
+            {
+                byte[] res = new byte[height * width * 2];
+                for (int c1 = red, j = 0; j < height * width * 2; c1 += bands * 2, j += 2)
+                {
+                    res[j] = bytes[c1];
+                    res[j + 1] = bytes[c1 + 1];
+                    //res[j / 2] = (byte)(BitConverter.ToInt16(new byte[] { bytes[c1], bytes[c1 + 1] }, 0) / 256.0 * 3.3);// Не работает на чётных каналах
+                }
+                Mat mat1 = new Mat(height, width, MatType.CV_16SC1, res);
+                Mat mat = mat1.Clone();
+                mat.ConvertTo(mat, MatType.CV_8UC1, 1.0 / 256.0 * 5.0);
+                return mat;
+            }
+            else 
+                return new Mat(height, width, MatType.CV_8UC1);
+            */
+
+            byte[][] conv = new byte[bands][];
+            Parallel.For(0, bands, (c) => {
+                conv[c] = new byte[height * width];
+                byte[] temp = new byte[height * width * 2];
+                for (int c1 = c, j = 0; j < height * width * 2; c1 += bands * 2, j += 2)
+                {
+                    temp[j] = bytes[c1];
+                    temp[j + 1] = bytes[c1 + 1];
+                }
+                Mat m1 = new Mat(height, width, MatType.CV_16SC1, temp);
+                Mat m = m1.Clone();
+                m.ConvertTo(m, MatType.CV_8UC1, 1.0 / 256.0 * 5.0);
+                m.GetArray(out conv[c]);
+            });
+
+            /*byte[] res2 = new byte[height * width];
+            for (int j = 0; j < height * width; j++)
+            {
+                res2[j] = conv[2][j];
+            }
+            return new Mat(height, width, MatType.CV_8UC1, res2);*/
+
+            int w = 3;
+            int q = 0;
+            int pU = 2;
+            int pL = 2;
+            int max = -1;
+            int min = 2 * w;
+            byte[][] mode = new byte[bands][];
+            byte[][] F = new byte[bands][];
+
+            while (q < 1)
+            {
+                for (int i = 0; i < width * height; i++)
+                {
+                    //for (int b = 0; b < bands; b++) {
+                    Parallel.For(0, bands, (b) => {
+                        int Ri = 0;
+                        for (int k1 = -w / 2; k1 <= w / 2; k1++)
+                        {
+                            int x = b + k1;
+                            if (x < 0) x = 0;
+                            if (x >= bands) x = bands - 1;
+                            Ri += conv[x][i];
+                        }
+                        Ri /= w;
+                        if (i == 0)
+                        {
+                            F[b] = new byte[width * height];
+                            mode[b] = new byte[width * height];
+                        }
+                        if (q == 0)
+                            F[b][i] = conv[b][i];
+                        mode[b][i] = (byte)(F[b][i] - Ri);
+                        F[b][i] = (byte)Ri;
+                    //}
+                    });
+                }
+
+                max = -1;
+                min = 2 * w;
+                pL = 0;
+                pU = 0;
+                for (int i = 0; i < 50; i++)
+                {
+                    int cMin = 0, cMax = 0;
+                    for (int b = 0; b < bands; b++)
+                    {
+                        for (int k1 = -w / 2; k1 < w / 2; k1++)
+                        {
+                            int x = b + k1;
+                            if (b + k1 < 0) x -= b + k1;
+                            if (b + k1 > bands) x += bands - (b + k1);
+                            int cur = conv[x][i];
+                            if (cur == max) cMax++;
+                            if (cur > max) max = cur;
+                            if (cur == min) cMin++;
+                            if (cur < min) min = cur;
+                        }
+                    }
+                    if (cMin < 2 * w && cMin == 0) pL++;
+                    if (cMax > -1 && cMax == 0) pU++;
+                }
+
+                //if (pL >= 2 && pU >= 2)
+                //{
+                q++;
+                //}
+            }
+            byte[] res1 = new byte[height * width];
+            for (int j = 0; j < height * width; j++)
+            {
+                res1[j] = mode[2][j];
+            }
+            return new Mat(height, width, MatType.CV_8UC1, res1);
         }
     }
 }

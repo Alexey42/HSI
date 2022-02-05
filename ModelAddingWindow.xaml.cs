@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,29 +15,34 @@ using System.Windows.Shapes;
 namespace HSI
 {
     /// <summary>
-    /// Логика взаимодействия для Classify.xaml
+    /// Логика взаимодействия для ModelAdding.xaml
     /// </summary>
-    public partial class Classify : Window
+    public partial class ModelAddingWindow : Window
     {
-        public float Threshold = 8;
-        public string Method = "";
+        public byte Red {
+            get { return Convert.ToByte(usersRed.Text); }
+        }
+        public byte Green
+        {
+            get { return Convert.ToByte(usersGreen.Text); }
+        }
+        public byte Blue
+        {
+            get { return Convert.ToByte(usersBlue.Text); }
+        }
+        public string ModelName
+        {
+            get { return modelName.Text; }
+        }
 
-        public Classify()
+        public ModelAddingWindow()
         {
             InitializeComponent();
         }
 
         private void Accept_Click(object sender, RoutedEventArgs e)
         {
-            Threshold = float.Parse(threshold_textbox.Text, CultureInfo.InvariantCulture.NumberFormat);
-            var item = (ComboBoxItem)method_list.SelectedItem;
-            Method = item.Name;
             this.DialogResult = true;
-        }
-
-        private void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            
         }
     }
 }

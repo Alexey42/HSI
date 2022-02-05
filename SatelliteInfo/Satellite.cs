@@ -11,6 +11,7 @@ namespace HSI.SatelliteInfo
         public string name;
 
         public float brightCoef;
+
         public abstract void SetDirectory(string path);
 
         public abstract string GetBandNameByNumber(string ch);
@@ -22,5 +23,6 @@ namespace HSI.SatelliteInfo
         public abstract double GetResolution(string ch);
 
         public abstract string GetFormat();
+
     }
 }
