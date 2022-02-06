@@ -19,13 +19,13 @@ namespace HSI.SatelliteInfo
         public Aviris()
         {
             name = "Aviris";
-            brightCoef = 2.3f;
+            brightCoef = 3.3f;
         }
 
         public Aviris(string path)
         {
             name = "Aviris";
-            brightCoef = 2.3f;
+            brightCoef = 3.3f;
             SetDirectory(path);
         }
 

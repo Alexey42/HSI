@@ -172,6 +172,10 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="EMDWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="HistogramWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -194,6 +198,10 @@
       <DependentUpon>ClassifyWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="ClassifyImage.cs" />
+    <Compile Include="EMDImage.cs" />
+    <Compile Include="EMDWindow.xaml.cs">
+      <DependentUpon>EMDWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Histogram.cs" />
     <Compile Include="HistogramWindow.xaml.cs">
       <DependentUpon>HistogramWindow.xaml</DependentUpon>
