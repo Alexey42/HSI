@@ -48,7 +48,7 @@ namespace HSI
             var RPNString = comp.Prepare();
             Vec3b[] vecs = new Vec3b[arrayLength];
 
-            /*Parallel.For(0, arrayLength, (i) =>
+            Parallel.For(0, arrayLength, (i) =>
             {
                 if (bytes[0][i * 2 + 1] + bytes[1][i * 2 + 1] + bytes[2][i * 2 + 1] != 0)
                 {
@@ -65,24 +65,24 @@ namespace HSI
                 progress++;
                 if (progress % (arrayLength / 100) == 0)
                     backgroundWorker.ReportProgress(progress / (arrayLength / 100));
-            });*/
+            });
 
-            for (int i = 0; i < arrayLength; i++)
-            {
-                if (bytes[0][i * 2 + 1] + bytes[1][i * 2 + 1] == 0)
-                    continue;
+            //for (int i = 0; i < arrayLength; i++)
+            //{
+            //    if (bytes[0][i * 2 + 1] + bytes[1][i * 2 + 1] == 0)
+            //        continue;
 
-                double m = bytes[0][i * 2 + 1];
-                double n = bytes[1][i * 2 + 1];
-                double temp = (m - n) / (m + n);
-                vecs[i][2] = (byte)((1 + temp) * 200);
-                vecs[i][1] = (byte)((1 - temp) * 200);
-                vecs[i][0] = 0;//(byte)Math.Abs(temp * 200);
+            //    double m = bytes[0][i * 2 + 1];
+            //    double n = bytes[1][i * 2 + 1];
+            //    double temp = (m - n) / (m + n);
+            //    vecs[i][2] = (byte)((1 + temp) * 200);
+            //    vecs[i][1] = (byte)((1 - temp) * 200);
+            //    vecs[i][0] = 0;//(byte)Math.Abs(temp * 200);
 
-                progress++;
-                if (progress % (arrayLength / 100) == 0)
-                    backgroundWorker.ReportProgress(progress / (arrayLength / 100));
-            }
+            //    progress++;
+            //    if (progress % (arrayLength / 100) == 0)
+            //        backgroundWorker.ReportProgress(progress / (arrayLength / 100));
+            //}
 
             backgroundWorker.ReportProgress(100);
             GC.Collect();
@@ -110,7 +110,7 @@ namespace HSI
             var RPNString = comp.Prepare();
             Vec3b[] vecs = new Vec3b[arrayLength];
 
-            /*Parallel.For(0, arrayLength, (i) =>
+            Parallel.For(0, arrayLength, (i) =>
             {
                 if (bytes[0][i] + bytes[1][i] + bytes[2][i] != 0)
                 {
@@ -127,24 +127,24 @@ namespace HSI
                 progress++;
                 if (progress % (arrayLength / 100) == 0)
                     backgroundWorker.ReportProgress(progress / (arrayLength / 100));
-            });*/
+            });
 
-            for (int i = 0; i < arrayLength; i++)
-            {
-                if (bytes[0][i] + bytes[1][i] == 0)
-                    continue;
+            //for (int i = 0; i < arrayLength; i++)
+            //{
+            //    if (bytes[0][i] + bytes[1][i] == 0)
+            //        continue;
 
-                double m = bytes[0][i];
-                double n = bytes[1][i];
-                double temp = (m - n) / (m + n);
-                vecs[i][2] = (byte)((1 + temp) * 200);
-                vecs[i][1] = (byte)((1 - temp) * 200);
-                vecs[i][0] = 0;//(byte)Math.Abs(temp * 200);
+            //    double m = bytes[0][i];
+            //    double n = bytes[1][i];
+            //    double temp = (m - n) / (m + n);
+            //    vecs[i][2] = (byte)((1 + temp) * 200);
+            //    vecs[i][1] = (byte)((1 - temp) * 200);
+            //    vecs[i][0] = 0;//(byte)Math.Abs(temp * 200);
 
-                progress++;
-                if (progress % (arrayLength / 100) == 0)
-                    backgroundWorker.ReportProgress(progress / (arrayLength / 100));
-            }
+            //    progress++;
+            //    if (progress % (arrayLength / 100) == 0)
+            //        backgroundWorker.ReportProgress(progress / (arrayLength / 100));
+            //}
 
             backgroundWorker.ReportProgress(100);
             GC.Collect();

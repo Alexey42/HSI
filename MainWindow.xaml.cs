@@ -51,6 +51,7 @@ namespace HSI
         public string[] bandNames = new string[3];
         float segSigma = 0, segK = 0;
         int segMin = 0;
+        int mode = 1;
 
         public MainWindow()
         {
@@ -392,6 +393,7 @@ namespace HSI
             EMDWindow dialog = new EMDWindow();
             if (dialog.ShowDialog() == true)
             {
+                mode = dialog.Mode;
                 path = dialog.path;
                 satellite = dialog.sat;
                 backgroundWorker.RunWorkerAsync("EMD");
@@ -443,7 +445,7 @@ namespace HSI
                     break;
                 case "EMD":
                     res = new Tuple<string, Mat>("EMD",
-                        EMDImage.EMD(path, backgroundWorker, satellite));
+                        EMDImage.EMD(mode, path, imageInfo.GetMat(), backgroundWorker, satellite));
                     e.Result = res;
                     break;
             }

@@ -16,6 +16,8 @@
         <Button Content="Ок" IsDefault="True" Click="Accept_Click" HorizontalAlignment="Left" Margin="153,189,0,0" VerticalAlignment="Top" Width="75"/>
         <Button Content="Выбрать папку" Click="ChooseDirectory_Click" HorizontalAlignment="Left" Margin="10,158,0,0" VerticalAlignment="Top" Width="99"/>
         <Label x:Name="chosenDirectory_lbl" HorizontalAlignment="Left" Margin="126,155,0,0" VerticalAlignment="Top" Width="256" Height="29"/>
+        <TextBox x:Name="mode" HorizontalAlignment="Left" Height="23" Margin="63,192,0,0" TextWrapping="Wrap" Text="1" VerticalAlignment="Top" Width="25"/>
+        <Label Content="Мода: " HorizontalAlignment="Left" Margin="12,189,0,0" VerticalAlignment="Top"/>
 
     </Grid>
 </Window>

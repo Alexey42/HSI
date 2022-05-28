@@ -89,12 +89,6 @@ namespace HSI
                 {
                     for (int k = 0; k < models.Count; k++)
                     {
-                        //double scalar = models[k].data[0, 0] * array[i][2] + models[k].data[1, 1] * array[i][1] +
-                        //    models[k].data[2, 2] * array[i][0];
-                        //double a = Math.Sqrt(Math.Pow(models[k].data[0, 0], 2) + Math.Pow(models[k].data[1, 1], 2) + Math.Pow(models[k].data[2, 2], 2));
-                        //double b = Math.Sqrt(Math.Pow(array[i][0], 2) + Math.Pow(array[i][1], 2) + Math.Pow(array[i][2], 2));
-                        //double cos = scalar / (a * b);
-                        //double angle = Math.Acos(cos) * 180 / Math.PI;
                         var vec_tmp = new Vec3b((byte)models[k].data[0, 0], (byte)models[k].data[1, 1], (byte)models[k].data[2, 2]);
                         double angle = GetAngle(vec_tmp, array[i]);
                         if (Math.Abs(angle) < threshold)

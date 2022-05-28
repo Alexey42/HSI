@@ -33,9 +33,9 @@ namespace HSI
             byte[][] bytes = new byte[3][];
             backgroundWorker.ReportProgress(5);
 
-            Parallel.For(0, 3, (i) => {
-            //for (int i = 0; i < 3; i++)
-            //{
+            //Parallel.For(0, 3, (i) => {
+            for (int i = 0; i < 3; i++)
+            {
                 var b = OpenSaveHelper.BandToBitmap_TIF(bandPaths[i]);
                 height = (int)b.Height;
                 width = (int)b.Width;
@@ -43,8 +43,8 @@ namespace HSI
                 int length = stride * height;
                 bytes[i] = new byte[length];
                 b.CopyPixels(bytes[i], stride, 0);
-            //}
-            });
+            }
+            //});
 
             backgroundWorker.ReportProgress(10);
 
@@ -108,53 +108,55 @@ namespace HSI
 
         static Mat BuildAviris(string[] bandPaths, Satellite satellite, BackgroundWorker backgroundWorker)
         {
-            int red = 11; // int.Parse(bandPaths[0]);
-            int green = 19; // int.Parse(bandPaths[1]);
-            int blue = 29; //int.Parse(bandPaths[2]);
+            int red = 31 * 2 - 2; // int.Parse(bandPaths[0]) * 2 - 2;
+            int green = 40 * 2 - 2; // int.Parse(bandPaths[1]) * 2 - 2;
+            int blue = 19 * 2 - 2; //int.Parse(bandPaths[2]) * 2 - 2;
             int bands = 224;
             Aviris sat = (Aviris)satellite;
             string path = sat.imgPath;
             int width = sat.width;
             int height = sat.height;
             byte[] bytes = File.ReadAllBytes(path);
-            
-            if (red != 0 && green != 0 && blue != 0)
+
+            if (red >= 0 && green >= 0 && blue >= 0)
             {
-                byte[] res = new byte[height * width * 6];
-                for (int c1 = red, c2 = green, c3 = blue, j = 0; j < height * width * 6; c1 += bands * 2, c2 += bands * 2, c3 += bands * 2, j += 6)
-                {
-                    res[j] = bytes[c1];
-                    res[j + 1] = bytes[c1 + 1];
-                    res[j + 2] = bytes[c2 + 2];
-                    res[j + 3] = bytes[c2 + 3];
-                    res[j + 4] = bytes[c3 + 4];
-                    res[j + 5] = bytes[c3 + 5];
-                    //res[j] = (byte)(BitConverter.ToInt16(new byte[] { bytes[c1], bytes[c1 + 1] }, 0) / 256.0 * 3.3);// Не работает на чётных каналах
-                    //res[j + 1] = (byte)(BitConverter.ToInt16(new byte[] { bytes[c2], bytes[c2 + 1] }, 0) / 256.0 * 3.3);
-                    //res[j + 2] = (byte)(BitConverter.ToInt16(new byte[] { bytes[c3], bytes[c3 + 1] }, 0) / 256.0 * 3.3);
-                    backgroundWorker.ReportProgress(100 * j / height * width * 6);
-                }
-                Mat mat1 = new Mat(height, width, MatType.CV_16SC3, res);
-                Mat mat = mat1.Clone();
-                mat.ConvertTo(mat, MatType.CV_8UC3, 1.0 / 256.0 * 5.0);
-                return mat;
+                byte[] res = new byte[height * width * 3];
+                Parallel.ForEach(Enumerable.Range(0, height * width).Select((j) => j * 3), (j) => {
+                    int c1 = blue + j / 3 * bands * 2;
+                    int c2 = green + j / 3 * bands * 2;
+                    int c3 = red + j / 3 * bands * 2;
+                    res[j] = ClipToByte(BitConverter.ToInt16(new byte[] { bytes[c1 + 1], bytes[c1] }, 0) / 256.0 * sat.brightCoef);
+                    res[j + 1] = ClipToByte(BitConverter.ToInt16(new byte[] { bytes[c2 + 1], bytes[c2] }, 0) / 256.0 * sat.brightCoef);
+                    res[j + 2] = ClipToByte(BitConverter.ToInt16(new byte[] { bytes[c3 + 1], bytes[c3] }, 0) / 256.0 * sat.brightCoef);
+                    
+                });
+                Mat mat1 = new Mat(height, width, MatType.CV_8UC3, res);
+                //Mat mat = mat1.Clone();
+                //mat.ConvertTo(mat, MatType.CV_8UC3, 1.0 / 256.0 * 5.0);
+                return mat1;
             }
-            else if (red != 0 && green == 0 && blue == 0)
+            else if (red >= 0 && green < 0 && blue < 0)
             {
-                byte[] res = new byte[height * width * 2];
-                for (int c1 = red, j = 0; j < height * width * 2; c1 += bands * 2, j += 2)
+                byte[] res = new byte[height * width];
+                for (int c1 = red, j = 0; j < height * width; c1 += bands * 2, j++)
                 {
-                    res[j] = bytes[c1];
-                    res[j + 1] = bytes[c1 + 1];
-                    //res[j / 2] = (byte)(BitConverter.ToInt16(new byte[] { bytes[c1], bytes[c1 + 1] }, 0) / 256.0 * 3.3);// Не работает на чётных каналах
+                    res[j] = ClipToByte(BitConverter.ToInt16(new byte[] { bytes[c1 + 1], bytes[c1] }, 0) / 256.0 * sat.brightCoef);
                 }
-                Mat mat1 = new Mat(height, width, MatType.CV_16SC1, res);
-                Mat mat = mat1.Clone();
-                mat.ConvertTo(mat, MatType.CV_8UC1, 1.0 / 256.0 * 5.0);
-                return mat;
+                Mat mat1 = new Mat(height, width, MatType.CV_8UC1, res);
+                //Mat mat = mat1.Clone();
+                //mat.ConvertTo(mat, MatType.CV_8UC1, 1.0 / 256.0 * 5.0);
+                return mat1;
             }
             else 
-                return new Mat(height, width, MatType.CV_8UC1);  
+                return new Mat(height, width, MatType.CV_8UC1);
+        }
+
+        static byte ClipToByte(double d)
+        {
+            if (d > 255)
+                return 255;
+            else
+                return (byte)d;
         }
     }
 }

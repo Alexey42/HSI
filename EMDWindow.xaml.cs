@@ -25,6 +25,7 @@ namespace HSI
         public string Camera;
         private VistaFolderBrowserDialog openFileDialog;
         public Satellite sat;
+        public int Mode = 1;
 
         public EMDWindow()
         {
@@ -35,6 +36,7 @@ namespace HSI
         {
             ListBoxItem l = (ListBoxItem)cam.SelectedItem;
             Camera = l.Content.ToString();
+            Mode = int.Parse(mode.Text);
 
             Parse(openFileDialog);
 
