@@ -332,3 +332,45 @@ ASALocalRun/
 
 # Local History for Visual Studio
 .localhistory/
+
+# Project-specific data and generated outputs
+# Keep source code and README screenshots in Git, but do not commit large
+# satellite datasets or files produced by image processing runs.
+*.SAFE/
+*.tif
+*.tiff
+*.TIF
+*.TIFF
+*.jp2
+*.j2k
+*.jpf
+*.jpm
+*.jpc
+*.jpg2
+*.j2c
+*.jpx
+*.mj2
+*.hdr
+*.img
+*.aux.xml
+*.qml
+*.scpx
+*.scpx.backup
+
+rgb_preview.tif
+raster_calc_result.tif
+classification_result.tif
+classification_stats.txt
+segmentation_result.tif
+emd_result.tif
+
+data/
+datasets/
+samples/
+outputs/
+results/
+MigrationBackup/
+
+# README assets are intentionally versioned.
+!readme_img/
+!readme_img/**

@@ -107,11 +107,14 @@ namespace HSI
 
             Parallel.For(0, 3, (i) => {
                 bands[i] = OpenSaveHelper.BandToBitmap(bandPaths[i]);
-                bands[i].GetArray(out bytes[i]);
             });
 
-            if (bytes[0].Length != bytes[1].Length || bytes[0].Length != bytes[2].Length)
+            if (!NormalizeBandSizes(bands))
                 return null;
+
+            Parallel.For(0, 3, (i) => {
+                bands[i].GetArray(out bytes[i]);
+            });
 
             int arrayLength = bytes[0].Length;
             formula = formula.Replace("Ch1", "x").Replace("Ch2", "y").Replace("Ch3", "z");
@@ -165,6 +168,27 @@ namespace HSI
             GC.Collect();
 
             return CreateOwnedMat(bands[0].Rows, bands[0].Cols, MatType.CV_8UC3, vecs);
+        }
+
+        static bool NormalizeBandSizes(Mat[] bands)
+        {
+            if (bands.Any(b => b == null || b.Empty()))
+                return false;
+
+            int targetRows = bands[0].Rows;
+            int targetCols = bands[0].Cols;
+            for (int i = 1; i < bands.Length; i++)
+            {
+                if (bands[i].Rows == targetRows && bands[i].Cols == targetCols)
+                    continue;
+
+                Mat resized = new Mat();
+                Cv2.Resize(bands[i], resized, new Size(targetCols, targetRows), 0, 0, InterpolationFlags.Linear);
+                bands[i].Dispose();
+                bands[i] = resized;
+            }
+
+            return true;
         }
 
         static Mat CreateOwnedMat(int height, int width, MatType type, Array pixels)

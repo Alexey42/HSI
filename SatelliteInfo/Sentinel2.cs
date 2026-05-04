@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using System.Text.RegularExpressions;
 
 namespace HSI.SatelliteInfo
 {
@@ -30,10 +31,13 @@ namespace HSI.SatelliteInfo
 
         public override void SetDirectory(string path)
         {
+            path = ResolveSafeDirectory(path);
             directory = Directory.GetFiles(path);
             foreach (var x in directory)
             {
-                if (Path.GetFileName(x) == "MTD_MSIL1C.xml") infoPath = x;
+                string fileName = Path.GetFileName(x);
+                if (fileName == "MTD_MSIL1C.xml" || fileName == "MTD_MSIL2A.xml")
+                    infoPath = x;
             }
             string granulePath = Path.Combine(path, "GRANULE");
             if (!Directory.Exists(granulePath))
@@ -47,7 +51,16 @@ namespace HSI.SatelliteInfo
             if (!Directory.Exists(imagePath))
                 throw new DirectoryNotFoundException("В грануле Sentinel-2 не найдена директория IMG_DATA.");
 
-            imageDirectory = Directory.GetFiles(imagePath);
+            imageDirectory = Directory.GetFiles(imagePath, "*.jp2", SearchOption.AllDirectories);
+        }
+
+        string ResolveSafeDirectory(string path)
+        {
+            if (Directory.Exists(Path.Combine(path, "GRANULE")))
+                return path;
+
+            string nestedSafe = Directory.GetDirectories(path, "*.SAFE").FirstOrDefault(x => Directory.Exists(Path.Combine(x, "GRANULE")));
+            return string.IsNullOrEmpty(nestedSafe) ? path : nestedSafe;
         }
 
         public override string GetBandNameByNumber(string ch)
@@ -103,7 +116,7 @@ namespace HSI.SatelliteInfo
         public override string GetBandNameByFilename(string file)
         {
             string res = "";
-            var part = file.Substring(file.Length - 6, 2).TrimStart('0');
+            var part = NormalizeBandNumber(ExtractBandNumber(file));
 
             switch (part)
             {
@@ -120,21 +133,30 @@ namespace HSI.SatelliteInfo
                     res = "Red";
                     break;
                 case "5":
-                    res = "NIR";
+                    res = "Veg Red";
                     break;
                 case "6":
-                    res = "SWIR 2";
+                    res = "Veg Red";
                     break;
                 case "7":
-                    res = "SWIR 3";
+                    res = "Veg Red";
                     break;
                 case "8":
-                    res = "PAN";
+                    res = "NIR";
                     break;
                 case "8A":
                     res = "Veg Red";
                     break;
                 case "9":
+                    res = "Water vapour";
+                    break;
+                case "10":
+                    res = "SWIR-cir";
+                    break;
+                case "11":
+                    res = "SWIR";
+                    break;
+                case "12":
                     res = "SWIR";
                     break;
             }
@@ -144,15 +166,49 @@ namespace HSI.SatelliteInfo
 
         public override string FindBandByNumber(string ch)
         {
-            string res = "";
+            string band = NormalizeBandNumber(ch);
+            if (string.IsNullOrEmpty(band))
+                return "";
 
-            foreach (var x in imageDirectory)
-            {
-                var t = x.Substring(x.Length - 6, 2);
-                if (t == "0" + ch || t == "" + ch) res = x;
-            }
+            var candidates = imageDirectory
+                .Where(x => NormalizeBandNumber(ExtractBandNumber(x)) == band)
+                .OrderBy(GetResolutionPriority)
+                .ThenBy(x => x)
+                .ToArray();
 
-            return res;
+            return candidates.Length > 0 ? candidates[0] : "";
+        }
+
+        string ExtractBandNumber(string file)
+        {
+            Match match = Regex.Match(Path.GetFileNameWithoutExtension(file), @"_B(?<band>0?1|0?2|0?3|0?4|0?5|0?6|0?7|0?8|8A|0?9|10|11|12)(?:_|$)", RegexOptions.IgnoreCase);
+            return match.Success ? match.Groups["band"].Value : "";
+        }
+
+        string NormalizeBandNumber(string band)
+        {
+            if (string.IsNullOrWhiteSpace(band))
+                return "";
+
+            band = band.Trim().ToUpperInvariant();
+            if (band == "8A")
+                return band;
+
+            int number;
+            return int.TryParse(band, out number) ? number.ToString(CultureInfo.InvariantCulture) : band;
+        }
+
+        int GetResolutionPriority(string file)
+        {
+            string name = Path.GetFileName(file);
+            if (name.Contains("_20m"))
+                return 0;
+            if (name.Contains("_10m"))
+                return 1;
+            if (name.Contains("_60m"))
+                return 2;
+
+            return 3;
         }
 
         public override double GetResolution(string ch)
