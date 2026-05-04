@@ -60,13 +60,325 @@ namespace HSI
             imageInfo = new ImageInfo();
             wrapedArea = new int[4];
             backgroundWorker = (BackgroundWorker)this.FindResource("backgroundWorker");
-            scr_img_scale.ScaleX = 0.05;
-            scr_img_scale.ScaleY = 0.05;
+            zoom_border.SizeChanged += zoom_border_SizeChanged;
+            UpdateCommandState();
+        }
+
+        private bool HasImage()
+        {
+            return imageInfo != null && imageInfo.GetMat() != null && !imageInfo.GetMat().Empty();
+        }
+
+        private void SetStatus(string text)
+        {
+            statusText.Text = text;
+        }
+
+        private void SetImageSource()
+        {
+            if (HasImage())
+            {
+                BitmapSource source = imageInfo.GetBI();
+                if (source != null)
+                {
+                    scr_img.Source = source;
+                    scr_img.Width = imageInfo.width;
+                    scr_img.Height = imageInfo.height;
+                    ResetImageTransform();
+                    emptyStateText.Visibility = Visibility.Collapsed;
+                    Dispatcher.BeginInvoke(new Action(FitImageToWorkspace), System.Windows.Threading.DispatcherPriority.ContextIdle);
+                }
+                else
+                {
+                    scr_img.Source = null;
+                    emptyStateText.Visibility = Visibility.Visible;
+                }
+            }
+            else
+            {
+                scr_img.Source = null;
+                emptyStateText.Visibility = Visibility.Visible;
+            }
+            scr_img.UpdateLayout();
+        }
+
+        private void ResetImageTransform()
+        {
+            TransformGroup group = scr_img.RenderTransform as TransformGroup;
+            if (group == null)
+                return;
+
+            ScaleTransform scale = group.Children.FirstOrDefault(tr => tr is ScaleTransform) as ScaleTransform;
+            TranslateTransform translate = group.Children.FirstOrDefault(tr => tr is TranslateTransform) as TranslateTransform;
+
+            if (scale != null)
+            {
+                scale.ScaleX = 1.0;
+                scale.ScaleY = 1.0;
+            }
+
+            if (translate != null)
+            {
+                translate.X = 0.0;
+                translate.Y = 0.0;
+            }
+        }
+
+        private void FitImageToWorkspace()
+        {
+            if (!HasImage())
+                return;
+
+            canvas_main.UpdateLayout();
+            zoom_border.UpdateLayout();
+            scr_img.UpdateLayout();
+            zoom_border.FitToBounds(imageInfo.width, imageInfo.height);
+        }
+
+        private void HideResultLegend()
+        {
+            legendPanel.Visibility = Visibility.Collapsed;
+            legendTitle.Text = "";
+            legendContent.Children.Clear();
+        }
+
+        private TextBlock CreateLegendText(string text)
+        {
+            return new TextBlock
+            {
+                Text = text,
+                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(68, 81, 95)),
+                TextWrapping = TextWrapping.Wrap,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+        }
+
+        private void ShowRasterLegend(string formulaText)
+        {
+            legendTitle.Text = "Палитра";
+            legendContent.Children.Clear();
+
+            legendContent.Children.Add(CreateLegendText("Значение формулы: " + formulaText));
+
+            Border gradient = new Border
+            {
+                Height = 18,
+                Margin = new Thickness(0, 8, 0, 4),
+                BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(216, 222, 230)),
+                BorderThickness = new Thickness(1),
+                Background = new LinearGradientBrush(
+                    new GradientStopCollection
+                    {
+                        new GradientStop(System.Windows.Media.Color.FromRgb(0, 255, 0), 0.0),
+                        new GradientStop(System.Windows.Media.Color.FromRgb(200, 200, 0), 0.5),
+                        new GradientStop(System.Windows.Media.Color.FromRgb(255, 0, 0), 1.0)
+                    },
+                    new System.Windows.Point(0, 0.5),
+                    new System.Windows.Point(1, 0.5))
+            };
+            legendContent.Children.Add(gradient);
+
+            Grid labels = new Grid();
+            labels.ColumnDefinitions.Add(new ColumnDefinition());
+            labels.ColumnDefinitions.Add(new ColumnDefinition());
+            labels.ColumnDefinitions.Add(new ColumnDefinition());
+            labels.Children.Add(CreateLegendLabel("-1 и ниже", 0, HorizontalAlignment.Left));
+            labels.Children.Add(CreateLegendLabel("0", 1, HorizontalAlignment.Center));
+            labels.Children.Add(CreateLegendLabel("+1 и выше", 2, HorizontalAlignment.Right));
+            legendContent.Children.Add(labels);
+
+            legendPanel.Visibility = Visibility.Visible;
+        }
+
+        private TextBlock CreateLegendLabel(string text, int column, HorizontalAlignment alignment)
+        {
+            TextBlock label = new TextBlock
+            {
+                Text = text,
+                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(94, 108, 122)),
+                FontSize = 12,
+                HorizontalAlignment = alignment
+            };
+            Grid.SetColumn(label, column);
+            return label;
+        }
+
+        private void ShowClassificationLegend()
+        {
+            legendTitle.Text = "Классы";
+            legendContent.Children.Clear();
+
+            WrapPanel panel = new WrapPanel();
+            foreach (Model model in models)
+            {
+                StackPanel item = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Margin = new Thickness(0, 0, 16, 6),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+
+                item.Children.Add(new Border
+                {
+                    Width = 18,
+                    Height = 18,
+                    BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(216, 222, 230)),
+                    BorderThickness = new Thickness(1),
+                    Background = new SolidColorBrush(model.userColor),
+                    Margin = new Thickness(0, 0, 6, 0)
+                });
+
+                item.Children.Add(CreateLegendText(model.name + " - " + model.coverPercentage.ToString("0.##") + "%"));
+                panel.Children.Add(item);
+            }
+
+            legendContent.Children.Add(panel);
+            legendPanel.Visibility = models.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void ShowSegmentLegend()
+        {
+            legendTitle.Text = "Сегменты";
+            legendContent.Children.Clear();
+            legendContent.Children.Add(CreateLegendText("Цвет каждого сегмента - средний цвет пикселей внутри сегмента; отдельной числовой шкалы у этого результата нет."));
+            legendPanel.Visibility = Visibility.Visible;
+        }
+
+        private void ShowGrayLegend(string title, string left, string right)
+        {
+            legendTitle.Text = title;
+            legendContent.Children.Clear();
+
+            Border gradient = new Border
+            {
+                Height = 18,
+                Margin = new Thickness(0, 0, 0, 4),
+                BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(216, 222, 230)),
+                BorderThickness = new Thickness(1),
+                Background = new LinearGradientBrush(Colors.Black, Colors.White, new System.Windows.Point(0, 0.5), new System.Windows.Point(1, 0.5))
+            };
+            legendContent.Children.Add(gradient);
+
+            Grid labels = new Grid();
+            labels.ColumnDefinitions.Add(new ColumnDefinition());
+            labels.ColumnDefinitions.Add(new ColumnDefinition());
+            labels.Children.Add(CreateLegendLabel(left, 0, HorizontalAlignment.Left));
+            labels.Children.Add(CreateLegendLabel(right, 1, HorizontalAlignment.Right));
+            legendContent.Children.Add(labels);
+
+            legendPanel.Visibility = Visibility.Visible;
+        }
+
+        private void ShowResultLegend(string operationName)
+        {
+            if (operationName == "CalculateRaster")
+            {
+                ShowRasterLegend(Formula);
+                return;
+            }
+
+            if (operationName == "ClassifyBarycentric" || operationName == "ClassifyAngle" || operationName == "ClassifyEuclid")
+            {
+                ShowClassificationLegend();
+                return;
+            }
+
+            if (operationName == "GBSegmentationSpectralAngle")
+            {
+                ShowSegmentLegend();
+                return;
+            }
+
+            if (operationName == "EMD")
+            {
+                ShowGrayLegend("EMD", "0", "255");
+                return;
+            }
+
+            HideResultLegend();
+        }
+
+        private void zoom_border_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (HasImage())
+                FitImageToWorkspace();
+        }
+
+        private bool EnsureImageLoaded(string action)
+        {
+            if (HasImage())
+                return true;
+
+            UiDialogHelper.ShowWarning(this, action + " можно выполнить только после загрузки изображения.");
+            return false;
+        }
+
+        private bool EnsureSatelliteMetadata(string action)
+        {
+            if (satellite != null)
+                return true;
+
+            UiDialogHelper.ShowWarning(this, action + " требует снимок, собранный через \"Добавить изображение\", чтобы были известны спутник и разрешение каналов.");
+            return false;
+        }
+
+        private bool EnsureModels()
+        {
+            if (models.Count > 0)
+                return true;
+
+            UiDialogHelper.ShowWarning(this, "Для классификации добавьте хотя бы один эталон: нажмите \"Добавить эталон\" и выделите область на изображении.");
+            return false;
+        }
+
+        private bool TryStartOperation(string operationName)
+        {
+            if (backgroundWorker.IsBusy)
+            {
+                UiDialogHelper.ShowWarning(this, "Дождитесь завершения текущей операции.");
+                return false;
+            }
+
+            progressBar.Value = 0;
+            SetStatus("Выполняется: " + GetOperationTitle(operationName));
+            backgroundWorker.RunWorkerAsync(operationName);
+            UpdateCommandState();
+            return true;
+        }
+
+        private string GetOperationTitle(string operationName)
+        {
+            switch (operationName)
+            {
+                case "AddImage": return "сборка изображения";
+                case "CalculateRaster": return "калькулятор растров";
+                case "GBSegmentationSpectralAngle": return "сегментация";
+                case "EMD": return "EMD";
+                case "ClassifyBarycentric": return "классификация";
+                case "ClassifyAngle": return "классификация";
+                case "ClassifyEuclid": return "классификация";
+                default: return operationName;
+            }
+        }
+
+        private void UpdateCommandState()
+        {
+            bool busy = backgroundWorker != null && backgroundWorker.IsBusy;
+            bool hasImage = HasImage();
+            addImage_btn.IsEnabled = !busy;
+            saveImage_btn.IsEnabled = !busy && hasImage;
+            crop_btn.IsEnabled = !busy && hasImage;
+            calcRaster_btn.IsEnabled = !busy;
+            EMD_btn.IsEnabled = !busy;
+            setModel_btn.IsEnabled = !busy && hasImage;
+            classify_btn.IsEnabled = !busy && hasImage && models.Count > 0;
+            segment_btn.IsEnabled = !busy && hasImage;
+            if (modelsHintText != null)
+                modelsHintText.Visibility = models.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            addImage_btn.IsEnabled = false;
             ImageAddingWindow dialog = new ImageAddingWindow();
             if (dialog.ShowDialog() == true)
             {
@@ -78,13 +390,13 @@ namespace HSI
                 
                 satellite = dialog.sat;
 
-                backgroundWorker.RunWorkerAsync("AddImage");
+                TryStartOperation("AddImage");
                 //scr_img_scale.ScaleX = 0.05;
                 //scr_img_scale.ScaleY = 0.05;
             }
             else
             {
-                addImage_btn.IsEnabled = true;
+                UpdateCommandState();
                 return;
             } 
         }
@@ -125,27 +437,19 @@ namespace HSI
             model.name = name;
             models.Add(model);
 
-            StringBuilder sb = new StringBuilder();
-            sb.Append("<Button x:Name=\"" + name + "Button\" xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x = \"http://schemas.microsoft.com/winfx/2006/xaml\"><StackPanel Orientation=\"Vertical\" Width=\"120\" Height=\"60\">" +
-                        "<Label x:Name = \"" + name + "Name\" Padding=\"15 0\" Content = \"name\" Width = \"120\" RenderTransformOrigin = \"0.5,0.5\" Height = \"20\" FontSize = \"16\" />" +
-                        "<Label x:Name = \"" + name + "UserColor\" Background = \"Blue\" Width = \"120\" RenderTransformOrigin = \"0.5,0.5\" Height = \"20\" />" +
-                        "<Label x:Name = \"" + name + "Color\" Background = \"Red\" Width = \"120\" RenderTransformOrigin = \"0.5,0.5\" Height = \"20\" />" +
-                    "</StackPanel></Button>");
-            Button button = (Button)XamlReader.Parse(sb.ToString());
+            Button button = new Button();
+            button.Name = "ModelButton" + models.Count;
+            button.Tag = model;
+            button.Margin = new Thickness(0, 0, 0, 6);
+            button.ToolTip = "Удалить эталон \"" + name + "\"";
+            StackPanel panel = new StackPanel { Orientation = Orientation.Vertical, Width = 140, Height = 60 };
+            panel.Children.Add(new Label { Content = name, Padding = new Thickness(8, 0, 8, 0), Height = 22, FontSize = 14 });
+            panel.Children.Add(new Label { Background = new SolidColorBrush(model.userColor), Height = 18 });
+            panel.Children.Add(new Label { Background = new SolidColorBrush(model.color), Height = 18 });
+            button.Content = panel;
             button.Click += DeleteModel;
             modelsPanel.Children.Add(button);
-            var finName = name + "Name";
-            var btn = FindName("btn");
-            var lbl = (Label)button.FindName(finName);
-            lbl.Content = name;
-
-            finName = name + "UserColor";
-            lbl = (Label)button.FindName(finName);
-            lbl.Background = new SolidColorBrush(model.userColor);
-
-            finName = name + "Color";
-            lbl = (Label)button.FindName(finName);
-            lbl.Background = new SolidColorBrush(model.color);
+            UpdateCommandState();
 
         }
 
@@ -153,8 +457,11 @@ namespace HSI
         {
             var ui = (UIElement)sender;
             var elem = (Button)sender;
-            models.Remove(models.Find((x) => { return x.name + "Button" == elem.Name; }));
+            Model model = elem.Tag as Model;
+            if (model != null)
+                models.Remove(model);
             modelsPanel.Children.Remove(ui);
+            UpdateCommandState();
         }
 
         byte Clamp(byte x, byte min, byte max)
@@ -179,18 +486,38 @@ namespace HSI
             if (type == ".jpeg2000")
                 ofd.Filter = "HSI | *.j2k;*.jp2;*.jpf;*.jpm;*.jpc;*.jpg2;*.j2c;*.jpx;*.mj2";
 
-            ofd.InitialDirectory = "D:\\HSI_курсовая\\LC08_L2SP_175020_20201002_20201007_02_T1";
             if (ofd.ShowDialog() == true)
             {
-                imageInfo = new ImageInfo(Cv2.ImRead(ofd.FileName), ofd.FileName);
-                scr_img.Source = imageInfo.GetBI();
+                Mat loaded = Cv2.ImRead(ofd.FileName);
+                if (loaded == null || loaded.Empty())
+                {
+                    UiDialogHelper.ShowError(this, "Не удалось открыть выбранное изображение.");
+                    return;
+                }
+
+                imageInfo.Dispose();
+                imageInfo = new ImageInfo(loaded, ofd.FileName);
+                satellite = null;
+                models.Clear();
+                modelsPanel.Children.Clear();
+                SetImageSource();
+                HideResultLegend();
+                SetStatus("Открыто изображение: " + System.IO.Path.GetFileName(ofd.FileName));
+                UpdateCommandState();
             }
         }
 
         private void ClearCanvas(object sender, RoutedEventArgs e)
         {
             imageInfo.Dispose();
-            scr_img.Source = null;
+            imageInfo = new ImageInfo();
+            models.Clear();
+            modelsPanel.Children.Clear();
+            satellite = null;
+            SetImageSource();
+            HideResultLegend();
+            SetStatus("Изображение очищено");
+            UpdateCommandState();
             // остаётся неосвобождёнными 100мб, освобождаются после повторного вызова ClearCanvas(!?)
         }
 
@@ -241,7 +568,8 @@ namespace HSI
                 UIElement element = (UIElement)sender;
                 int x = (int)e.GetPosition(element).X;
                 int y = (int)e.GetPosition(element).Y;
-                setModel_btn.Background = System.Windows.Media.Brushes.LightGray;
+                setModel_btn.ClearValue(Button.BackgroundProperty);
+                crop_btn.ClearValue(Button.BackgroundProperty);
                 zoom_border.isActive = true;
                 makingWrapper = false;
                 wrapedArea[2] = x;
@@ -263,122 +591,136 @@ namespace HSI
                     wrapedArea[3] = t;
                 }
 
+                wrapedArea[0] = Math.Max(0, Math.Min(wrapedArea[0], imageInfo.width - 1));
+                wrapedArea[1] = Math.Max(0, Math.Min(wrapedArea[1], imageInfo.height - 1));
+                wrapedArea[2] = Math.Max(0, Math.Min(wrapedArea[2], imageInfo.width));
+                wrapedArea[3] = Math.Max(0, Math.Min(wrapedArea[3], imageInfo.height));
+
                 int wrapedX = wrapedArea[2] - wrapedArea[0];
                 int wrapedY = wrapedArea[3] - wrapedArea[1];
                 int wrapedSize = wrapedX * wrapedY;
                 if (wrapedSize == 0)
                     return;
 
-                Vec3b[] wrapedBytes;
-                int[] meanR = { 0, 0, 0 }, meanG = { 0, 0, 0 }, meanB = { 0, 0, 0 };
                 Mat part = imageInfo.GetMat().SubMat(wrapedArea[1], wrapedArea[3], wrapedArea[0], wrapedArea[2]);
-                part.GetArray(out wrapedBytes);
-
-                Scalar mean = part.Mean();
-                for (int i = 0; i < wrapedSize; i++)
-                {
-                    if (Math.Abs(meanR[0] - mean[2]) > Math.Abs(wrapedBytes[i][2] - mean[2]))
-                    {
-                        meanR[0] = wrapedBytes[i][2];
-                        meanR[1] = wrapedBytes[i][1];
-                        meanR[2] = wrapedBytes[i][0];
-                    }
-                    if (Math.Abs(meanG[1] - mean[1]) > Math.Abs(wrapedBytes[i][1] - mean[1]))
-                    {
-                        meanG[0] = wrapedBytes[i][2];
-                        meanG[1] = wrapedBytes[i][1];
-                        meanG[2] = wrapedBytes[i][0];
-                    }
-                    if (Math.Abs(meanB[2] - mean[0]) > Math.Abs(wrapedBytes[i][0] - mean[0]))
-                    {
-                        meanB[0] = wrapedBytes[i][2];
-                        meanB[1] = wrapedBytes[i][1];
-                        meanB[2] = wrapedBytes[i][0];
-                    }
-                }
 
                 if (settingModel)
                 {
+                    Vec3b[] wrapedBytes;
+                    int[] meanR = { 0, 0, 0 }, meanG = { 0, 0, 0 }, meanB = { 0, 0, 0 };
+                    part.GetArray(out wrapedBytes);
+
+                    Scalar mean = part.Mean();
+                    for (int i = 0; i < wrapedSize; i++)
+                    {
+                        if (Math.Abs(meanR[0] - mean[2]) > Math.Abs(wrapedBytes[i][2] - mean[2]))
+                        {
+                            meanR[0] = wrapedBytes[i][2];
+                            meanR[1] = wrapedBytes[i][1];
+                            meanR[2] = wrapedBytes[i][0];
+                        }
+                        if (Math.Abs(meanG[1] - mean[1]) > Math.Abs(wrapedBytes[i][1] - mean[1]))
+                        {
+                            meanG[0] = wrapedBytes[i][2];
+                            meanG[1] = wrapedBytes[i][1];
+                            meanG[2] = wrapedBytes[i][0];
+                        }
+                        if (Math.Abs(meanB[2] - mean[0]) > Math.Abs(wrapedBytes[i][0] - mean[0]))
+                        {
+                            meanB[0] = wrapedBytes[i][2];
+                            meanB[1] = wrapedBytes[i][1];
+                            meanB[2] = wrapedBytes[i][0];
+                        }
+                    }
+
                     ModelAddingWindow dialog = new ModelAddingWindow();
                     if (dialog.ShowDialog() == true)
                     {
                         SetModel(meanR, meanG, meanB, dialog.Red, dialog.Green, dialog.Blue, dialog.ModelName.Replace(" ", "_"));
                     }
                     settingModel = false;
+                    SetStatus("Эталон добавлен. Всего эталонов: " + models.Count);
                 }
                 else
                 {
-                    VistaFolderBrowserDialog ofd = new VistaFolderBrowserDialog();
-                    ofd.RootFolder = Environment.SpecialFolder.Recent;
-                    if (ofd.ShowDialog() == true)
-                    {
-                        Mat res = new Mat(wrapedY, wrapedX, imageInfo.GetMat().Type(), wrapedBytes);
-                        imageInfo.Dispose();
-                        imageInfo = new ImageInfo(res, satellite, ofd.SelectedPath + "\\croped.tif", bandPaths, bandNames);
-                        Cv2.ImWrite(ofd.SelectedPath + "\\croped.tif", res);
-                        //OpenSaveHelper.SaveTifImage(savePath, res.Item2);
-                        scr_img.Source = imageInfo.GetBI();
-                        scr_img.UpdateLayout();
-                    }
-                    
+                    Mat res = part.Clone();
+                    imageInfo.Dispose();
+                    imageInfo = new ImageInfo(res, satellite, "", bandPaths, bandNames);
+                    SetImageSource();
+                    HideResultLegend();
+                    SetStatus("Изображение обрезано. Для записи результата используйте \"Сохранить как...\".");
+                    UpdateCommandState();
                 }
+
+                part.Dispose();
             }
         }
 
         private void classify_btn_Click(object sender, RoutedEventArgs e)
         {
-            classify_btn.IsEnabled = false;
+            if (!EnsureImageLoaded("Классификацию") || !EnsureSatelliteMetadata("Классификация") || !EnsureModels())
+                return;
+
             ClassifyWindow dialog = new ClassifyWindow();
             if (dialog.ShowDialog() == true)
             {
                 classifyMethod = dialog.Method;
                 classifyThreshold = dialog.Threshold;
-                backgroundWorker.RunWorkerAsync(classifyMethod);
+                TryStartOperation(classifyMethod);
                 //scr_img_scale.ScaleX = 0.05;
                 //scr_img_scale.ScaleY = 0.05;
             }
             else
             {
-                classify_btn.IsEnabled = true;
+                UpdateCommandState();
                 return;
             }
         }
 
         private void segment_btn_Click(object sender, RoutedEventArgs e)
         {
-            segment_btn.IsEnabled = false;
+            if (!EnsureImageLoaded("Сегментацию") || !EnsureSatelliteMetadata("Сегментация"))
+                return;
+
             SegmentWindow dialog = new SegmentWindow();
             if (dialog.ShowDialog() == true)
             {
                 segSigma = dialog.tr1;
                 segK = dialog.tr2;
                 segMin = dialog.tr3;
-                backgroundWorker.RunWorkerAsync("GBSegmentationSpectralAngle");
+                TryStartOperation("GBSegmentationSpectralAngle");
             }
             else
             {
-                segment_btn.IsEnabled = true;
+                UpdateCommandState();
                 return;
             }
         }
 
         private void setModel_btn_Click(object sender, RoutedEventArgs e)
         {
+            if (!EnsureImageLoaded("Добавление эталона"))
+                return;
+
             if (makingWrapper)
             {
                 settingModel = false;
-                setModel_btn.Background = System.Windows.Media.Brushes.LightGray;
+                setModel_btn.ClearValue(Button.BackgroundProperty);
+                crop_btn.ClearValue(Button.BackgroundProperty);
                 zoom_border.isActive = true;
                 makingWrapper = false;
                 rect_for_wrap.Width = 0;
                 rect_for_wrap.Height = 0;
+                SetStatus("Готово");
             }
             else
             {
                 settingModel = true;
                 setModel_btn.Background = System.Windows.Media.Brushes.PaleGreen;
+                crop_btn.ClearValue(Button.BackgroundProperty);
                 zoom_border.isActive = false;
                 makingWrapper = true;
+                SetStatus("Выделите область на изображении для нового эталона.");
             }
         }
 
@@ -389,18 +731,17 @@ namespace HSI
 
         private void EMD_btn_Click(object sender, RoutedEventArgs e)
         {
-            EMD_btn.IsEnabled = false;
             EMDWindow dialog = new EMDWindow();
             if (dialog.ShowDialog() == true)
             {
                 mode = dialog.Mode;
                 path = dialog.path;
                 satellite = dialog.sat;
-                backgroundWorker.RunWorkerAsync("EMD");
+                TryStartOperation("EMD");
             }
             else
             {
-                EMD_btn.IsEnabled = true;
+                UpdateCommandState();
                 return;
             }
         }
@@ -437,8 +778,6 @@ namespace HSI
                     break;
                 case "GBSegmentationSpectralAngle":
                     int ccsNum;
-                    //Mat m = new Mat("C:\\Users\\55000\\Downloads\\test.jpg");
-                    Mat m = new Mat("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\croped.tif");
                     res = new Tuple<string, Mat>("GBSegmentationSpectralAngle", 
                         SegmentImage.SegmentAngle(imageInfo.GetMat(), segSigma, segK, segMin, out ccsNum, backgroundWorker));
                     e.Result = res;
@@ -454,51 +793,72 @@ namespace HSI
 
         private void BackgroundWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
+            UpdateCommandState();
+
+            if (e.Error != null)
+            {
+                progressBar.Value = 0;
+                SetStatus("Операция завершилась с ошибкой");
+                UiDialogHelper.ShowError(this, "Не удалось выполнить операцию. Проверьте выбранные файлы и параметры.", e.Error);
+                return;
+            }
+
+            if (e.Cancelled || e.Result == null)
+            {
+                progressBar.Value = 0;
+                SetStatus("Операция отменена или не дала результата");
+                UiDialogHelper.ShowWarning(this, "Операция не дала результата. Проверьте, что каналы выбраны корректно и имеют одинаковый размер.");
+                return;
+            }
+
             var res = (Tuple<string, Mat>)e.Result;
-            if (res.Item2 == null) return;
+            if (res.Item2 == null || res.Item2.Empty())
+            {
+                progressBar.Value = 0;
+                SetStatus("Операция не дала результата");
+                UiDialogHelper.ShowWarning(this, "Операция не дала результата. Проверьте входные данные.");
+                return;
+            }
 
             string savePath = "";
 
             if (res.Item1 == "ClassifyBarycentric" || res.Item1 == "ClassifyAngle" || res.Item1 == "ClassifyEuclid") {
-                PrepareAndSaveStats(path + "\\3.txt");
-                savePath = path + "\\22.tif";
+                PrepareAndSaveStats(System.IO.Path.Combine(path, "classification_stats.txt"));
+                savePath = System.IO.Path.Combine(path, "classification_result.tif");
                 imageInfo.Dispose();
                 imageInfo = new ImageInfo(res.Item2, satellite, savePath, bandPaths, bandNames);
-                classify_btn.IsEnabled = true;
             }
             if (res.Item1 == "AddImage")
             {
-                savePath = path + "\\11.tif";
+                savePath = System.IO.Path.Combine(path, "rgb_preview.tif");
                 imageInfo.Dispose();
                 imageInfo = new ImageInfo(res.Item2, satellite, savePath, bandPaths, bandNames);
-                addImage_btn.IsEnabled = true;
             }
             if (res.Item1 == "CalculateRaster")
             {
-                savePath = path + "\\44.tif";
+                savePath = System.IO.Path.Combine(path, "raster_calc_result.tif");
                 imageInfo.Dispose();
                 imageInfo = new ImageInfo(res.Item2, satellite, savePath, bandPaths, bandNames);
-                calcRaster_btn.IsEnabled = true;
             }
             if (res.Item1 == "GBSegmentationSpectralAngle")
             {
-                savePath = path + "\\5.tif";
+                savePath = System.IO.Path.Combine(path, "segmentation_result.tif");
                 imageInfo.Dispose();
                 imageInfo = new ImageInfo(res.Item2, satellite, savePath, bandPaths, bandNames);
-                segment_btn.IsEnabled = true;
             }
             if (res.Item1 == "EMD")
             {
-                savePath = path + "\\6.tif";
+                savePath = System.IO.Path.Combine(path, "emd_result.tif");
                 imageInfo.Dispose();
                 imageInfo = new ImageInfo(res.Item2, satellite, savePath, bandPaths, bandNames);
-                EMD_btn.IsEnabled = true;
             }
             
             Cv2.ImWrite(savePath, res.Item2);
             //OpenSaveHelper.SaveTifImage(savePath, res.Item2);
-            scr_img.Source = imageInfo.GetBI();
-            scr_img.UpdateLayout();
+            SetImageSource();
+            ShowResultLegend(res.Item1);
+            SetStatus("Готово: " + savePath);
+            UpdateCommandState();
             
 
             GC.Collect();
@@ -522,13 +882,13 @@ namespace HSI
                 calcRaster_btn.IsEnabled = false;
                 Formula = dialog.Formula;
                 satellite = dialog.sat;
-                backgroundWorker.RunWorkerAsync("CalculateRaster");
+                TryStartOperation("CalculateRaster");
                 //scr_img_scale.ScaleX = 0.05;
                 //scr_img_scale.ScaleY = 0.05;
             }
             else
             {
-                calcRaster_btn.IsEnabled = true;
+                UpdateCommandState();
                 return;
             }
 
@@ -538,8 +898,14 @@ namespace HSI
         private void hist_fromFile_click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog ofd = new OpenFileDialog();
-            if (imageInfo.path != "")
-                ofd.InitialDirectory = imageInfo.path;
+            if (!string.IsNullOrEmpty(imageInfo.path))
+            {
+                string initialDirectory = Directory.Exists(imageInfo.path)
+                    ? imageInfo.path
+                    : System.IO.Path.GetDirectoryName(imageInfo.path);
+                if (!string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory))
+                    ofd.InitialDirectory = initialDirectory;
+            }
             ChooseSatelliteWindow chooseSatellite = new ChooseSatelliteWindow();
             
             if (ofd.ShowDialog() == true && chooseSatellite.ShowDialog() == true)
@@ -553,8 +919,14 @@ namespace HSI
         private void openHDF_click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog ofd = new OpenFileDialog();
-            if (imageInfo.path != "")
-                ofd.InitialDirectory = imageInfo.path;
+            if (!string.IsNullOrEmpty(imageInfo.path))
+            {
+                string initialDirectory = Directory.Exists(imageInfo.path)
+                    ? imageInfo.path
+                    : System.IO.Path.GetDirectoryName(imageInfo.path);
+                if (!string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory))
+                    ofd.InitialDirectory = initialDirectory;
+            }
             if (ofd.ShowDialog() == true)
             {
                 //var dataset = Gdal.Open(ofd.FileName, Access.GA_ReadOnly);
@@ -564,23 +936,49 @@ namespace HSI
 
         private void CropImage_Click(object sender, RoutedEventArgs e)
         {
+            if (!EnsureImageLoaded("Обрезку"))
+                return;
+
             if (makingWrapper)
             {
                 zoom_border.isActive = true;
                 makingWrapper = false;
                 rect_for_wrap.Width = 0;
                 rect_for_wrap.Height = 0;
+                crop_btn.ClearValue(Button.BackgroundProperty);
+                SetStatus("Готово");
             }
             else
             {
                 zoom_border.isActive = false;
                 makingWrapper = true;
+                settingModel = false;
+                setModel_btn.ClearValue(Button.BackgroundProperty);
+                crop_btn.Background = System.Windows.Media.Brushes.PaleGreen;
+                SetStatus("Выделите область изображения для обрезки.");
             }
         }
 
         private void SaveImage_Click(object sender, RoutedEventArgs e)
         {
-            
+            if (!EnsureImageLoaded("Сохранение"))
+                return;
+
+            SaveFileDialog sfd = new SaveFileDialog();
+            sfd.Filter = "TIFF (*.tif)|*.tif|PNG (*.png)|*.png|JPEG (*.jpg)|*.jpg";
+            sfd.FileName = "hsi_result.tif";
+            if (sfd.ShowDialog() == true)
+            {
+                try
+                {
+                    Cv2.ImWrite(sfd.FileName, imageInfo.GetMat());
+                    SetStatus("Изображение сохранено: " + sfd.FileName);
+                }
+                catch (Exception ex)
+                {
+                    UiDialogHelper.ShowError(this, "Не удалось сохранить изображение.", ex);
+                }
+            }
         }
     }
 }

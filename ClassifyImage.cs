@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace HSI
@@ -15,7 +16,11 @@ namespace HSI
             double scalar = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
             double k1 = Math.Sqrt(Math.Pow(a[0], 2) + Math.Pow(a[1], 2) + Math.Pow(a[2], 2));
             double k2 = Math.Sqrt(Math.Pow(b[0], 2) + Math.Pow(b[1], 2) + Math.Pow(b[2], 2));
+            if (k1 == 0 || k2 == 0)
+                return double.MaxValue;
+
             double cos = scalar / (k1 * k2);
+            cos = Math.Max(-1, Math.Min(1, cos));
 
             return Math.Acos(cos) * 180 / Math.PI;
         }
@@ -36,6 +41,7 @@ namespace HSI
 
             int progress = 0;
             Vec3b[] array = imageInfo.GetBytes();
+            int progressStep = Math.Max(1, array.Length / 100);
 
             Parallel.For(0, array.Length, (i) =>
             {
@@ -43,24 +49,24 @@ namespace HSI
                 {
                     for (int k = 0; k < models.Count; k++)
                     {
-                        double a = Math.Pow(models[k].data[0, 0] - array[i][2], 2) / models[k].data[0, 0];
-                        double b = Math.Pow(models[k].data[1, 1] - array[i][1], 2) / models[k].data[1, 1];
-                        double c = Math.Pow(models[k].data[2, 2] - array[i][0], 2) / models[k].data[2, 2];
+                        double a = Math.Pow(models[k].data[0, 0] - array[i][2], 2) / Math.Max(1, models[k].data[0, 0]);
+                        double b = Math.Pow(models[k].data[1, 1] - array[i][1], 2) / Math.Max(1, models[k].data[1, 1]);
+                        double c = Math.Pow(models[k].data[2, 2] - array[i][0], 2) / Math.Max(1, models[k].data[2, 2]);
                         double dist = Math.Sqrt(a + b + c);
                         if (Math.Abs(dist) < threshold)
                         {
-                            coverCount[k]++;
+                            Interlocked.Increment(ref coverCount[k]);
                             array[i] = new Vec3b(models[k].userColor.B, models[k].userColor.G, models[k].userColor.R);
                             break;
                         }
                     }
                 }
-                progress++;
-                if (progress % (array.Length / 100) == 0)
-                    backgroundWorker.ReportProgress(progress / (array.Length / 100));
+                int currentProgress = Interlocked.Increment(ref progress);
+                if (currentProgress % progressStep == 0)
+                    backgroundWorker.ReportProgress(Math.Min(99, currentProgress / progressStep));
             });
             backgroundWorker.ReportProgress(100);
-            Mat mat = new Mat(imageInfo.height, imageInfo.width, MatType.CV_8UC3, array);
+            Mat mat = CreateOwnedMat(imageInfo.height, imageInfo.width, MatType.CV_8UC3, array);
             var resolution = imageInfo.satellite.GetResolution("");
             for (int i = 0; i < models.Count; i++)
             {
@@ -82,6 +88,7 @@ namespace HSI
 
             int progress = 0;
             Vec3b[] array = imageInfo.GetBytes();
+            int progressStep = Math.Max(1, array.Length / 100);
 
             Parallel.For(0, array.Length, (i) =>
             {
@@ -93,18 +100,18 @@ namespace HSI
                         double angle = GetAngle(vec_tmp, array[i]);
                         if (Math.Abs(angle) < threshold)
                         {
-                            coverCount[k]++;
+                            Interlocked.Increment(ref coverCount[k]);
                             array[i] = new Vec3b(models[k].userColor.B, models[k].userColor.G, models[k].userColor.R);
                             break;
                         }
                     }
                 }
-                progress++;
-                if (progress % (array.Length / 100) == 0)
-                    backgroundWorker.ReportProgress(progress / (array.Length / 100));
+                int currentProgress = Interlocked.Increment(ref progress);
+                if (currentProgress % progressStep == 0)
+                    backgroundWorker.ReportProgress(Math.Min(99, currentProgress / progressStep));
             });
             backgroundWorker.ReportProgress(100);
-            Mat mat = new Mat(imageInfo.height, imageInfo.width, MatType.CV_8UC3, array);
+            Mat mat = CreateOwnedMat(imageInfo.height, imageInfo.width, MatType.CV_8UC3, array);
             var resolution = imageInfo.satellite.GetResolution("");
             for (int i = 0; i < models.Count; i++)
             {
@@ -137,11 +144,14 @@ namespace HSI
                     m[1, 0]++; m[0, 2]++; m[2, 1]++;
                     im = m.CreateInvertibleMatrix();
                 }
+                if (im == null)
+                    throw new InvalidOperationException("Не удалось построить обратимую матрицу для эталона \"" + model.name + "\". Попробуйте выбрать более неоднородную область эталона.");
                 inverted_matrix.Add(im);
             }
 
             int progress = 0;
             Vec3b[] array = imageInfo.GetBytes();
+            int progressStep = Math.Max(1, array.Length / 100);
 
             Parallel.For(0, array.Length, (i) =>
             {
@@ -156,18 +166,18 @@ namespace HSI
                         if (Math.Abs(res[0, 0]) < threshold && Math.Abs(res[1, 0]) < threshold
                             && Math.Abs(res[2, 0]) < threshold)
                         {
-                            coverCount[k]++;
+                            Interlocked.Increment(ref coverCount[k]);
                             array[i] = new Vec3b(models[k].userColor.B, models[k].userColor.G, models[k].userColor.R);
                             break;
                         }
                     }
                 }
-                progress++;
-                if (progress % (array.Length / 100) == 0)
-                    backgroundWorker.ReportProgress(progress / (array.Length / 100));
+                int currentProgress = Interlocked.Increment(ref progress);
+                if (currentProgress % progressStep == 0)
+                    backgroundWorker.ReportProgress(Math.Min(99, currentProgress / progressStep));
             });
             backgroundWorker.ReportProgress(100);
-            Mat mat = new Mat(imageInfo.height, imageInfo.width, MatType.CV_8UC3, array);
+            Mat mat = CreateOwnedMat(imageInfo.height, imageInfo.width, MatType.CV_8UC3, array);
             var resolution = imageInfo.satellite.GetResolution("");
             for (int i = 0; i < models.Count; i++)
             {
@@ -179,6 +189,12 @@ namespace HSI
             GC.Collect();
 
             return mat;
+        }
+
+        static Mat CreateOwnedMat(int height, int width, MatType type, Array pixels)
+        {
+            using (Mat view = new Mat(height, width, type, pixels))
+                return view.Clone();
         }
     }
 }

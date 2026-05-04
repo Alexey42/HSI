@@ -43,16 +43,24 @@ namespace HSI
 
         public static BitmapSource BandToBitmap_TIF(string path)
         {
-            FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            TiffBitmapDecoder decoder = new TiffBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
-            return decoder.Frames[0];
+            using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                TiffBitmapDecoder decoder = new TiffBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+                BitmapSource frame = decoder.Frames[0];
+                frame.Freeze();
+                return frame;
+            }
         }
 
         public static BitmapSource BandToBitmap_JPEG(string path)
         {
-            FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            JpegBitmapDecoder decoder = new JpegBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
-            return decoder.Frames[0];
+            using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                JpegBitmapDecoder decoder = new JpegBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+                BitmapSource frame = decoder.Frames[0];
+                frame.Freeze();
+                return frame;
+            }
         }
     }
 }

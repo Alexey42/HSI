@@ -30,8 +30,20 @@ namespace HSI
 
         private void Accept_Click(object sender, RoutedEventArgs e)
         {
-            Threshold = float.Parse(threshold_textbox.Text, CultureInfo.InvariantCulture.NumberFormat);
+            string thresholdText = threshold_textbox.Text.Replace(",", ".");
+            if (!float.TryParse(thresholdText, NumberStyles.Any, CultureInfo.InvariantCulture, out Threshold) || Threshold <= 0)
+            {
+                UiDialogHelper.ShowWarning(this, "Введите положительный порог классификации. Можно использовать точку или запятую.");
+                return;
+            }
+
             var item = (ComboBoxItem)method_list.SelectedItem;
+            if (item == null)
+            {
+                UiDialogHelper.ShowWarning(this, "Выберите метод классификации.");
+                return;
+            }
+
             Method = item.Name;
             this.DialogResult = true;
         }

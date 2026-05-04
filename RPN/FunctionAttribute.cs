@@ -7,8 +7,6 @@ namespace com.sgcombo.RpnLib
         private string functionName;
         private string paramTypes;
         private string group;
-        private string paramNames;
-        private string description;
 
         public string FunctionName
         {

@@ -7,25 +7,38 @@
         mc:Ignorable="d"
         Title="CalcRaster" Height="263.052" Width="400" WindowStartupLocation="CenterScreen">
     <Grid>
-        <ListBox x:Name="cam" SelectionChanged="cam_SelectionChanged" HorizontalAlignment="Left" Height="101" Margin="12,35,0,0" VerticalAlignment="Top" Width="113" SelectedIndex="0">
+        <ListBox x:Name="cam" SelectionChanged="cam_SelectionChanged" HorizontalAlignment="Left" Height="101" Margin="12,35,0,0" VerticalAlignment="Top" Width="113" SelectedIndex="0"
+                 ToolTip="Выберите тип спутниковых данных: от него зависит поиск файлов каналов и чтение значений пикселей.">
             <ListBoxItem Content="Landsat 8"></ListBoxItem>
             <ListBoxItem Content="Sentinel 2"></ListBoxItem>
         </ListBox>
-        <Label Content="Выберите камеру" HorizontalAlignment="Left" Margin="12,9,0,0" VerticalAlignment="Top" Width="113"/>
+        <Label Content="Выберите камеру" HorizontalAlignment="Left" Margin="12,9,0,0" VerticalAlignment="Top" Width="113"
+               ToolTip="Выберите тип спутниковых данных: от него зависит поиск файлов каналов и чтение значений пикселей."/>
         <Button Content="Ок" IsDefault="True" Click="Accept_Click" HorizontalAlignment="Left" Margin="158,202,0,0" VerticalAlignment="Top" Width="75"/>
         <Button Content="Выбрать папку" Click="ChooseDirectory_Click" HorizontalAlignment="Left" Margin="10,176,0,0" VerticalAlignment="Top" Width="99"/>
         <Label x:Name="chosenDirectory_lbl" HorizontalAlignment="Left" Margin="126,173,0,0" VerticalAlignment="Top" Width="256" Height="29"/>
-        <TextBox x:Name="formula" Text="(Ch1-Ch2)/(Ch1+Ch2)" Background="GhostWhite" HorizontalAlignment="Left" Margin="136,139,0,0" VerticalAlignment="Top" Width="256" Height="29"/>
-        <Button x:Name="ch1_op" Content="Ch1" Click="AddSymbol" HorizontalAlignment="Left" Margin="145,110,0,0" VerticalAlignment="Top" Width="29"/>
-        <Button x:Name="ch2_op" Content="Ch2" Click="AddSymbol" HorizontalAlignment="Left" Margin="179,110,0,0" VerticalAlignment="Top" Width="29"/>
-        <Button x:Name="ch3_op" Content="Ch3" Click="AddSymbol" HorizontalAlignment="Left" Margin="213,110,0,0" VerticalAlignment="Top" Width="29"/>
-        <Label Content="Каналы" HorizontalAlignment="Left" Margin="238,1,0,0" VerticalAlignment="Top" Width="57"/>
-        <TextBox x:Name="ch1" TextChanged="ch1_TextChanged" HorizontalAlignment="Left" Height="23" Margin="168,50,0,0" TextWrapping="Wrap" Text="5" VerticalAlignment="Top" Width="40" TextAlignment="Center"/>
-        <TextBox x:Name="ch2" TextChanged="ch1_TextChanged" HorizontalAlignment="Left" Height="23" Margin="249,50,0,0" TextWrapping="Wrap" Text="6" VerticalAlignment="Top" Width="40" TextAlignment="Center"/>
-        <TextBox x:Name="ch3" TextChanged="ch1_TextChanged" HorizontalAlignment="Left" Height="23" Margin="332,50,0,0" TextWrapping="Wrap" Text="4" VerticalAlignment="Top" Width="40" TextAlignment="Center"/>
-        <Button x:Name="ch1_btn" Click="channel_btn_Click" Content="Выбрать" HorizontalAlignment="Left" Margin="158,78,0,0" VerticalAlignment="Top" Width="60" Height="19"/>
-        <Button x:Name="ch2_btn" Click="channel_btn_Click" Content="Выбрать" HorizontalAlignment="Left" Margin="240,78,0,0" VerticalAlignment="Top" Width="60" Height="19"/>
-        <Button x:Name="ch3_btn" Click="channel_btn_Click" Content="Выбрать" HorizontalAlignment="Left" Margin="322,78,0,0" VerticalAlignment="Top" Width="60" Height="19"/>
+        <TextBox x:Name="formula" Text="(Ch1-Ch2)/(Ch1+Ch2)" Background="GhostWhite" HorizontalAlignment="Left" Margin="136,139,0,0" VerticalAlignment="Top" Width="256" Height="29"
+                 ToolTip="Формула вычисляется для каждого пикселя. Используйте Ch1, Ch2, Ch3 и арифметические операции; результат окрашивается: отрицательные значения зеленее, положительные краснее."/>
+        <Button x:Name="ch1_op" Content="Ch1" Click="AddSymbol" HorizontalAlignment="Left" Margin="145,110,0,0" VerticalAlignment="Top" Width="29"
+                ToolTip="Вставить первый выбранный канал в формулу."/>
+        <Button x:Name="ch2_op" Content="Ch2" Click="AddSymbol" HorizontalAlignment="Left" Margin="179,110,0,0" VerticalAlignment="Top" Width="29"
+                ToolTip="Вставить второй выбранный канал в формулу."/>
+        <Button x:Name="ch3_op" Content="Ch3" Click="AddSymbol" HorizontalAlignment="Left" Margin="213,110,0,0" VerticalAlignment="Top" Width="29"
+                ToolTip="Вставить третий выбранный канал в формулу."/>
+        <Label Content="Каналы" HorizontalAlignment="Left" Margin="238,1,0,0" VerticalAlignment="Top" Width="57"
+               ToolTip="Номера или файлы каналов, которые будут подставляться в формулу как Ch1, Ch2 и Ch3."/>
+        <TextBox x:Name="ch1" TextChanged="ch1_TextChanged" HorizontalAlignment="Left" Height="23" Margin="168,50,0,0" TextWrapping="Wrap" Text="5" VerticalAlignment="Top" Width="40" TextAlignment="Center"
+                 ToolTip="Номер первого канала или ... если канал выбран файлом."/>
+        <TextBox x:Name="ch2" TextChanged="ch1_TextChanged" HorizontalAlignment="Left" Height="23" Margin="249,50,0,0" TextWrapping="Wrap" Text="6" VerticalAlignment="Top" Width="40" TextAlignment="Center"
+                 ToolTip="Номер второго канала или ... если канал выбран файлом."/>
+        <TextBox x:Name="ch3" TextChanged="ch1_TextChanged" HorizontalAlignment="Left" Height="23" Margin="332,50,0,0" TextWrapping="Wrap" Text="4" VerticalAlignment="Top" Width="40" TextAlignment="Center"
+                 ToolTip="Номер третьего канала или ... если канал выбран файлом."/>
+        <Button x:Name="ch1_btn" Click="channel_btn_Click" Content="Выбрать" HorizontalAlignment="Left" Margin="158,78,0,0" VerticalAlignment="Top" Width="60" Height="19"
+                ToolTip="Выбрать файл первого канала вручную."/>
+        <Button x:Name="ch2_btn" Click="channel_btn_Click" Content="Выбрать" HorizontalAlignment="Left" Margin="240,78,0,0" VerticalAlignment="Top" Width="60" Height="19"
+                ToolTip="Выбрать файл второго канала вручную."/>
+        <Button x:Name="ch3_btn" Click="channel_btn_Click" Content="Выбрать" HorizontalAlignment="Left" Margin="322,78,0,0" VerticalAlignment="Top" Width="60" Height="19"
+                ToolTip="Выбрать файл третьего канала вручную."/>
         <Label x:Name="ch1_lbl" HorizontalAlignment="Left" Margin="168,24,0,0" VerticalAlignment="Top" Width="50" Height="26"/>
         <Label x:Name="ch2_lbl" HorizontalAlignment="Left" Margin="249,24,0,0" VerticalAlignment="Top" Width="50" Height="26"/>
         <Label x:Name="ch3_lbl" HorizontalAlignment="Left" Margin="332,24,0,0" VerticalAlignment="Top" Width="50" Height="26"/>

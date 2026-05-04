@@ -13,6 +13,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.IO;
 
 namespace HSI
 {
@@ -34,11 +35,12 @@ namespace HSI
 
         private void Accept_Click(object sender, RoutedEventArgs e)
         {
+            if (!ValidateInput())
+                return;
+
             ListBoxItem l = (ListBoxItem)cam.SelectedItem;
             Camera = l.Content.ToString();
             Mode = int.Parse(mode.Text);
-
-            Parse(openFileDialog);
 
             this.DialogResult = true;
         }
@@ -62,6 +64,12 @@ namespace HSI
 
         private void ChooseDirectory_Click(object sender, RoutedEventArgs e)
         {
+            if (sat == null)
+            {
+                UiDialogHelper.ShowWarning(this, "Сначала выберите спутник/камеру.");
+                return;
+            }
+
             VistaFolderBrowserDialog ofd = new VistaFolderBrowserDialog();
             ofd.RootFolder = Environment.SpecialFolder.Recent;
             if (ofd.ShowDialog() == true)
@@ -69,16 +77,55 @@ namespace HSI
                 openFileDialog = ofd;
                 path = ofd.SelectedPath;
                 chosenDirectory_lbl.Content = path;
-                sat.SetDirectory(path);
+                try
+                {
+                    sat.SetDirectory(path);
+                }
+                catch (Exception ex)
+                {
+                    UiDialogHelper.ShowError(this, "Не удалось прочитать выбранную папку спутникового снимка.", ex);
+                }
             }
 
         }
 
-        void Parse(VistaFolderBrowserDialog ofd)
+        bool ValidateInput()
         {
-            if (Camera == "Landsat 8") sat.SetDirectory("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1"); // В релизе этой строки быть не должно
-            if (Camera == "Sentinel 2") sat.SetDirectory("D:\\HSI_images\\S2B_MSIL1C_20190602T080619_N0207_R078_T38VMH_20190602T102902.SAFE"); // В релизе этой строки быть не должно
-            if (Camera == "Aviris") sat.SetDirectory(@"D:\HSI_images\f080611t01p00r07rdn_c"); // В релизе этой строки быть не должно
+            if (sat == null || cam.SelectedItem == null)
+            {
+                UiDialogHelper.ShowWarning(this, "Выберите спутник/камеру.");
+                return false;
+            }
+
+            if (sat.name != "Aviris")
+            {
+                UiDialogHelper.ShowWarning(this, "EMD сейчас реализован только для AVIRIS.");
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
+            {
+                UiDialogHelper.ShowWarning(this, "Выберите папку со снимком AVIRIS.");
+                return false;
+            }
+
+            if (!int.TryParse(mode.Text, out Mode) || Mode < 1)
+            {
+                UiDialogHelper.ShowWarning(this, "Введите номер моды EMD: целое число больше 0.");
+                return false;
+            }
+
+            try
+            {
+                sat.SetDirectory(path);
+            }
+            catch (Exception ex)
+            {
+                UiDialogHelper.ShowError(this, "Не удалось прочитать данные AVIRIS.", ex);
+                return false;
+            }
+
+            return true;
         }
     }
 }

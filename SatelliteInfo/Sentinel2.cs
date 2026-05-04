@@ -33,9 +33,20 @@ namespace HSI.SatelliteInfo
             directory = Directory.GetFiles(path);
             foreach (var x in directory)
             {
-                if (x == "MTD_MSIL1C.xml") infoPath = x;
+                if (Path.GetFileName(x) == "MTD_MSIL1C.xml") infoPath = x;
             }
-            imagePath = Directory.GetDirectories(path + "\\GRANULE")[0] + "\\IMG_DATA";
+            string granulePath = Path.Combine(path, "GRANULE");
+            if (!Directory.Exists(granulePath))
+                throw new DirectoryNotFoundException("В папке Sentinel-2 не найдена директория GRANULE.");
+
+            string[] granules = Directory.GetDirectories(granulePath);
+            if (granules.Length == 0)
+                throw new DirectoryNotFoundException("В папке GRANULE не найдены данные снимка.");
+
+            imagePath = Path.Combine(granules[0], "IMG_DATA");
+            if (!Directory.Exists(imagePath))
+                throw new DirectoryNotFoundException("В грануле Sentinel-2 не найдена директория IMG_DATA.");
+
             imageDirectory = Directory.GetFiles(imagePath);
         }
 
@@ -92,7 +103,7 @@ namespace HSI.SatelliteInfo
         public override string GetBandNameByFilename(string file)
         {
             string res = "";
-            var part = file.Substring(file.Length - 6, 2);
+            var part = file.Substring(file.Length - 6, 2).TrimStart('0');
 
             switch (part)
             {
@@ -119,6 +130,9 @@ namespace HSI.SatelliteInfo
                     break;
                 case "8":
                     res = "PAN";
+                    break;
+                case "8A":
+                    res = "Veg Red";
                     break;
                 case "9":
                     res = "SWIR";

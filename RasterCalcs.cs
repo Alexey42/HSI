@@ -15,6 +15,9 @@ namespace HSI
     {
         public static Mat CalculateRaster(string formula, string[] bandPaths, BackgroundWorker backgroundWorker, Satellite satellite)
         {
+            if (satellite == null)
+                throw new ArgumentException("Не выбран спутник/камера.");
+
             if (satellite.name == "Landsat 8")
                 return CalcLandsat8(formula, bandPaths, backgroundWorker, satellite);
             if (satellite.name == "Sentinel 2")
@@ -46,7 +49,9 @@ namespace HSI
             formula = formula.Replace("Ch1", "x").Replace("Ch2", "y").Replace("Ch3", "z");
             var comp = new RPNExpression(formula);
             var RPNString = comp.Prepare();
+            object expressionLock = new object();
             Vec3b[] vecs = new Vec3b[arrayLength];
+            int progressStep = Math.Max(1, arrayLength / 100);
 
             Parallel.For(0, arrayLength, (i) =>
             {
@@ -56,15 +61,19 @@ namespace HSI
                         new RPNArguments("x", bytes[0][i * 2 + 1]),
                         new RPNArguments("y", bytes[1][i * 2 + 1]),
                         new RPNArguments("z", bytes[2][i * 2 + 1]) };
-                    double temp = (double)comp.Calculate(arguments);
-                    vecs[i][2] = (byte)((1 + temp) * 200);
-                    vecs[i][1] = (byte)((1 - temp) * 200);
+                    double temp;
+                    lock (expressionLock)
+                    {
+                        temp = (double)comp.Calculate(arguments);
+                    }
+                    vecs[i][2] = ClipToByte((1 + temp) * 200);
+                    vecs[i][1] = ClipToByte((1 - temp) * 200);
                     vecs[i][0] = 0;//(byte)Math.Abs(temp * 200);
                 }
 
                 progress++;
-                if (progress % (arrayLength / 100) == 0)
-                    backgroundWorker.ReportProgress(progress / (arrayLength / 100));
+                if (progress % progressStep == 0)
+                    backgroundWorker.ReportProgress(Math.Min(99, progress / progressStep));
             });
 
             //for (int i = 0; i < arrayLength; i++)
@@ -87,18 +96,18 @@ namespace HSI
             backgroundWorker.ReportProgress(100);
             GC.Collect();
 
-            return new Mat(height, width, MatType.CV_8UC3, vecs);
+            return CreateOwnedMat(height, width, MatType.CV_8UC3, vecs);
         }
 
         static Mat CalcSentinel2(string formula, string[] bandPaths, BackgroundWorker backgroundWorker, Satellite satellite)
         {
             int progress = 0;
-            Mat band = null;
+            Mat[] bands = new Mat[3];
             byte[][] bytes = new byte[3][];
 
             Parallel.For(0, 3, (i) => {
-                band = OpenSaveHelper.BandToBitmap(bandPaths[i]);
-                band.GetArray(out bytes[i]);
+                bands[i] = OpenSaveHelper.BandToBitmap(bandPaths[i]);
+                bands[i].GetArray(out bytes[i]);
             });
 
             if (bytes[0].Length != bytes[1].Length || bytes[0].Length != bytes[2].Length)
@@ -108,7 +117,9 @@ namespace HSI
             formula = formula.Replace("Ch1", "x").Replace("Ch2", "y").Replace("Ch3", "z");
             var comp = new RPNExpression(formula);
             var RPNString = comp.Prepare();
+            object expressionLock = new object();
             Vec3b[] vecs = new Vec3b[arrayLength];
+            int progressStep = Math.Max(1, arrayLength / 100);
 
             Parallel.For(0, arrayLength, (i) =>
             {
@@ -118,15 +129,19 @@ namespace HSI
                         new RPNArguments("x", bytes[0][i]),
                         new RPNArguments("y", bytes[1][i]),
                         new RPNArguments("z", bytes[2][i]) };
-                    double temp = (double)comp.Calculate(arguments);
-                    vecs[i][2] = (byte)((1 + temp) * 200);
-                    vecs[i][1] = (byte)((1 - temp) * 200);
+                    double temp;
+                    lock (expressionLock)
+                    {
+                        temp = (double)comp.Calculate(arguments);
+                    }
+                    vecs[i][2] = ClipToByte((1 + temp) * 200);
+                    vecs[i][1] = ClipToByte((1 - temp) * 200);
                     vecs[i][0] = 0;//(byte)Math.Abs(temp * 200);
                 }
 
                 progress++;
-                if (progress % (arrayLength / 100) == 0)
-                    backgroundWorker.ReportProgress(progress / (arrayLength / 100));
+                if (progress % progressStep == 0)
+                    backgroundWorker.ReportProgress(Math.Min(99, progress / progressStep));
             });
 
             //for (int i = 0; i < arrayLength; i++)
@@ -149,7 +164,25 @@ namespace HSI
             backgroundWorker.ReportProgress(100);
             GC.Collect();
 
-            return new Mat(band.Rows, band.Cols, MatType.CV_8UC3, vecs);
+            return CreateOwnedMat(bands[0].Rows, bands[0].Cols, MatType.CV_8UC3, vecs);
+        }
+
+        static Mat CreateOwnedMat(int height, int width, MatType type, Array pixels)
+        {
+            using (Mat view = new Mat(height, width, type, pixels))
+                return view.Clone();
+        }
+
+        static byte ClipToByte(double value)
+        {
+            if (double.IsNaN(value) || double.IsInfinity(value))
+                return 0;
+            if (value < 0)
+                return 0;
+            if (value > 255)
+                return 255;
+
+            return (byte)value;
         }
     }
 }

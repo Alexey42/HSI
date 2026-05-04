@@ -42,7 +42,15 @@ namespace HSI.SatelliteInfo
                     imgPath = x;
             }
 
+            if (string.IsNullOrEmpty(infoPath))
+                throw new FileNotFoundException("В папке AVIRIS не найден файл заголовка *_img.hdr.");
+            if (string.IsNullOrEmpty(imgPath))
+                throw new FileNotFoundException("В папке AVIRIS не найден файл данных *_img.");
+
             string[] info = File.ReadLines(infoPath).ToArray();
+            if (info.Length <= 9)
+                throw new FormatException("Файл заголовка AVIRIS имеет неожиданный формат.");
+
             string sub = info[8].Substring(9);
             width = int.Parse(sub);
             sub = info[9].Substring(7);
@@ -80,4 +88,3 @@ namespace HSI.SatelliteInfo
         }
     }
 }
-

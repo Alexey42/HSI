@@ -8,6 +8,7 @@ using System.Windows.Media.Imaging;
 using OpenCvSharp;
 using OpenCvSharp.WpfExtensions;
 using System.Runtime.InteropServices;
+using System.Windows.Media;
 
 namespace HSI
 {
@@ -67,15 +68,75 @@ namespace HSI
             return mat.ToBitmapSource();
         }
 
-        public BitmapImage GetBI()
+        public BitmapSource GetBI()
         {
-            BitmapImage image = new BitmapImage();
-            image.BeginInit();
-            image.CacheOption = BitmapCacheOption.OnLoad;
-            image.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-            image.UriSource = new Uri(path);
-            image.EndInit();
-            return image;
+            if (mat != null && !mat.Empty())
+            {
+                BitmapSource source = CreateBitmapSourceFromMat(mat);
+                if (source != null)
+                    return source;
+            }
+
+            if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
+            {
+                BitmapImage image = new BitmapImage();
+                image.BeginInit();
+                image.CacheOption = BitmapCacheOption.OnLoad;
+                image.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                image.UriSource = new Uri(path);
+                image.EndInit();
+                image.Freeze();
+                return image;
+            }
+
+            return null;
+        }
+
+        private BitmapSource CreateBitmapSourceFromMat(Mat source)
+        {
+            if (source.Type() == MatType.CV_8UC3)
+            {
+                Vec3b[] pixels;
+                source.GetArray(out pixels);
+                int stride = ((source.Cols * 24 + 31) / 32) * 4;
+                byte[] bytes = new byte[stride * source.Rows];
+
+                for (int y = 0; y < source.Rows; y++)
+                {
+                    int sourceRow = y * source.Cols;
+                    int targetRow = y * stride;
+                    for (int x = 0; x < source.Cols; x++)
+                    {
+                        Vec3b pixel = pixels[sourceRow + x];
+                        int target = targetRow + x * 3;
+                        bytes[target] = pixel.Item0;
+                        bytes[target + 1] = pixel.Item1;
+                        bytes[target + 2] = pixel.Item2;
+                    }
+                }
+
+                BitmapSource bitmap = BitmapSource.Create(source.Cols, source.Rows, 96, 96,
+                    PixelFormats.Bgr24, null, bytes, stride);
+                bitmap.Freeze();
+                return bitmap;
+            }
+
+            if (source.Type() == MatType.CV_8UC1)
+            {
+                byte[] pixels;
+                source.GetArray(out pixels);
+                int stride = ((source.Cols * 8 + 31) / 32) * 4;
+                byte[] bytes = new byte[stride * source.Rows];
+                for (int y = 0; y < source.Rows; y++)
+                    Buffer.BlockCopy(pixels, y * source.Cols, bytes, y * stride, source.Cols);
+
+                BitmapSource bitmap = BitmapSource.Create(source.Cols, source.Rows, 96, 96,
+                    PixelFormats.Gray8, null, bytes, stride);
+                bitmap.Freeze();
+                return bitmap;
+            }
+
+            return null;
         }
 
         public Vec3b[] GetBytes()

@@ -20,15 +20,15 @@ namespace HSI
     public partial class ModelAddingWindow : Window
     {
         public byte Red {
-            get { return Convert.ToByte(usersRed.Text); }
+            get { return byte.Parse(usersRed.Text); }
         }
         public byte Green
         {
-            get { return Convert.ToByte(usersGreen.Text); }
+            get { return byte.Parse(usersGreen.Text); }
         }
         public byte Blue
         {
-            get { return Convert.ToByte(usersBlue.Text); }
+            get { return byte.Parse(usersBlue.Text); }
         }
         public string ModelName
         {
@@ -42,6 +42,21 @@ namespace HSI
 
         private void Accept_Click(object sender, RoutedEventArgs e)
         {
+            byte value;
+            if (!byte.TryParse(usersRed.Text, out value) ||
+                !byte.TryParse(usersGreen.Text, out value) ||
+                !byte.TryParse(usersBlue.Text, out value))
+            {
+                UiDialogHelper.ShowWarning(this, "Цвет эталона задается числами от 0 до 255 для R, G и B.");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(modelName.Text))
+            {
+                UiDialogHelper.ShowWarning(this, "Введите имя эталона.");
+                return;
+            }
+
             this.DialogResult = true;
         }
     }

@@ -57,7 +57,6 @@ namespace com.sgcombo.RpnLib
                             al.Push(false);
                             break;
                         }
-                        break;
                     case RPNTokenType.ALPHA:
                         if (vars.TryGetValue(tok, out RPNArguments arg))
                         {

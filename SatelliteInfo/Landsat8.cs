@@ -33,6 +33,8 @@ namespace HSI.SatelliteInfo
             {
                 if (x.ToLower().EndsWith("mtl.xml")) infoPath = x;
             }
+            if (string.IsNullOrEmpty(infoPath))
+                throw new FileNotFoundException("В папке Landsat 8 не найден MTL.xml с метаданными.");
         }
 
         public override string GetBandNameByNumber(string ch)

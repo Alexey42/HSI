@@ -41,12 +41,14 @@ namespace HSI
             this.child = element;
             if (child != null)
             {
-                TransformGroup group = new TransformGroup();
-                ScaleTransform st = new ScaleTransform();
-                group.Children.Add(st);
-                TranslateTransform tt = new TranslateTransform();
-                group.Children.Add(tt);
-                child.RenderTransform = group;
+                TransformGroup group = child.RenderTransform as TransformGroup;
+                if (group == null || !group.Children.Any(tr => tr is ScaleTransform) || !group.Children.Any(tr => tr is TranslateTransform))
+                {
+                    group = new TransformGroup();
+                    group.Children.Add(new ScaleTransform());
+                    group.Children.Add(new TranslateTransform());
+                    child.RenderTransform = group;
+                }
                 child.RenderTransformOrigin = new Point(0.0, 0.0);
                 this.MouseWheel += child_MouseWheel;
                 this.MouseLeftButtonDown += child_MouseLeftButtonDown;
@@ -71,6 +73,52 @@ namespace HSI
                 tt.X = 0.0;
                 tt.Y = 0.0;
             }
+        }
+
+        protected override Size MeasureOverride(Size constraint)
+        {
+            if (child != null)
+                child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+
+            double width = double.IsInfinity(constraint.Width) && child != null ? child.DesiredSize.Width : constraint.Width;
+            double height = double.IsInfinity(constraint.Height) && child != null ? child.DesiredSize.Height : constraint.Height;
+            return new Size(width, height);
+        }
+
+        protected override Size ArrangeOverride(Size arrangeSize)
+        {
+            if (child != null)
+                child.Arrange(new Rect(new Point(0, 0), child.DesiredSize));
+
+            return arrangeSize;
+        }
+
+        public void FitToBounds(double contentWidth, double contentHeight)
+        {
+            double viewportWidth = ActualWidth;
+            double viewportHeight = ActualHeight;
+
+            FrameworkElement parent = Parent as FrameworkElement;
+            if ((viewportWidth <= 0 || viewportHeight <= 0) && parent != null)
+            {
+                viewportWidth = parent.ActualWidth;
+                viewportHeight = parent.ActualHeight;
+            }
+
+            if (child == null || contentWidth <= 0 || contentHeight <= 0 || viewportWidth <= 0 || viewportHeight <= 0)
+                return;
+
+            var st = GetScaleTransform(child);
+            var tt = GetTranslateTransform(child);
+            double scale = System.Math.Min(viewportWidth / contentWidth, viewportHeight / contentHeight);
+            scale = System.Math.Min(1.0, scale);
+            if (scale <= 0)
+                scale = 1.0;
+
+            st.ScaleX = scale;
+            st.ScaleY = scale;
+            tt.X = (viewportWidth - contentWidth * scale) / 2.0;
+            tt.Y = (viewportHeight - contentHeight * scale) / 2.0;
         }
 
         #region Child Events

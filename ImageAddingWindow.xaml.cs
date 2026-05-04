@@ -37,10 +37,11 @@ namespace HSI
 
         private void Accept_Click(object sender, RoutedEventArgs e)
         {
+            if (!ValidateInput())
+                return;
+
             ListBoxItem l = (ListBoxItem)cam.SelectedItem;
             Camera = l.Content.ToString();
-
-            Parse(openFileDialog);
 
             this.DialogResult = true;
         }
@@ -64,6 +65,12 @@ namespace HSI
 
         private void ChooseDirectory_Click(object sender, RoutedEventArgs e)
         {
+            if (sat == null)
+            {
+                UiDialogHelper.ShowWarning(this, "Сначала выберите спутник/камеру.");
+                return;
+            }
+
             VistaFolderBrowserDialog ofd = new VistaFolderBrowserDialog();
             ofd.RootFolder = Environment.SpecialFolder.Recent;
             //ofd.SelectedPath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1";
@@ -72,31 +79,64 @@ namespace HSI
                 openFileDialog = ofd;
                 path = ofd.SelectedPath;
                 chosenDirectory_lbl.Content = path;
-                sat.SetDirectory(path);
+                try
+                {
+                    sat.SetDirectory(path);
+                }
+                catch (Exception ex)
+                {
+                    UiDialogHelper.ShowError(this, "Не удалось прочитать выбранную папку спутникового снимка.", ex);
+                }
             }
 
         }
 
-        void Parse(VistaFolderBrowserDialog ofd)
+        bool ValidateInput()
         {
-            //if (Camera == "Landsat 8") sat.SetDirectory("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1"); // В релизе этой строки быть не должно
-            //if (Camera == "Sentinel 2") sat.SetDirectory("D:\\HSI_images\\S2B_MSIL1C_20190602T080619_N0207_R078_T38VMH_20190602T102902.SAFE"); // В релизе этой строки быть не должно
-            //if (Camera == "Aviris") sat.SetDirectory(@"D:\HSI_images\f080611t01p00r07rdn_c"); // В релизе этой строки быть не должно
-            sat.SetDirectory(ofd.SelectedPath);
-            if (ch1.Text != "...")
+            if (sat == null || cam.SelectedItem == null)
             {
-                BandPaths[0] = sat.FindBandByNumber(ch1.Text);
-                ch1_lbl.Content = sat.GetBandNameByNumber(ch1.Text); // В релизе убрать
+                UiDialogHelper.ShowWarning(this, "Выберите спутник/камеру.");
+                return false;
             }
-            if (ch2.Text != "...")
+
+            if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
             {
-                BandPaths[1] = sat.FindBandByNumber(ch2.Text);
-                ch2_lbl.Content = sat.GetBandNameByNumber(ch2.Text); // В релизе убрать
+                UiDialogHelper.ShowWarning(this, "Выберите папку со снимком.");
+                return false;
             }
-            if (ch3.Text != "...")
+
+            try
             {
-                BandPaths[2] = sat.FindBandByNumber(ch3.Text);
-                ch3_lbl.Content = sat.GetBandNameByNumber(ch3.Text); // В релизе убрать
+                sat.SetDirectory(path);
+                FillBandPath(0, ch1.Text, ch1_lbl);
+                FillBandPath(1, ch2.Text, ch2_lbl);
+                FillBandPath(2, ch3.Text, ch3_lbl);
+            }
+            catch (Exception ex)
+            {
+                UiDialogHelper.ShowError(this, "Не удалось подобрать каналы. Проверьте папку и номера каналов.", ex);
+                return false;
+            }
+
+            for (int i = 0; i < BandPaths.Length; i++)
+            {
+                bool fileChannelExpected = sat.GetFormat() != "img";
+                if (string.IsNullOrWhiteSpace(BandPaths[i]) || (fileChannelExpected && !File.Exists(BandPaths[i])))
+                {
+                    UiDialogHelper.ShowWarning(this, "Канал " + (i + 1) + " не выбран или файл не найден.");
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        void FillBandPath(int index, string channelText, Label label)
+        {
+            if (channelText != "...")
+            {
+                BandPaths[index] = sat.FindBandByNumber(channelText);
+                label.Content = sat.GetBandNameByNumber(channelText);
             }
         }
 
@@ -114,23 +154,25 @@ namespace HSI
                 file = ofd.FileName;
                 path = file.Substring(0, file.LastIndexOf('\\'));
             }
+            else
+                return;
 
             if (button.Name == "ch1_btn")
             {
                 BandPaths[0] = file;
-                ch1_lbl.Content = sat.GetBandNameByFilename(file);
+                ch1_lbl.Content = sat != null ? sat.GetBandNameByFilename(file) : "";
                 ch1.Text = "...";
             }
             else if (button.Name == "ch2_btn")
             {
                 BandPaths[1] = file;
-                ch2_lbl.Content = sat.GetBandNameByFilename(file);
+                ch2_lbl.Content = sat != null ? sat.GetBandNameByFilename(file) : "";
                 ch2.Text = "...";
             }
             else if (button.Name == "ch3_btn")
             {
                 BandPaths[2] = file;
-                ch3_lbl.Content = sat.GetBandNameByFilename(file);
+                ch3_lbl.Content = sat != null ? sat.GetBandNameByFilename(file) : "";
                 ch3.Text = "...";
             }
         }
@@ -139,7 +181,7 @@ namespace HSI
         {
             if (ch1_lbl == null || ch2_lbl == null || ch3_lbl == null) return;
             var ch = (TextBox)sender;
-            if (ch.Text == "...") return;
+            if (ch.Text == "..." || sat == null) return;
             string name = sat.GetBandNameByNumber(ch.Text);
             switch (ch.Name)
             {

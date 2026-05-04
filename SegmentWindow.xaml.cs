@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Globalization;
 
 namespace HSI
 {
@@ -29,10 +30,22 @@ namespace HSI
 
         private void Accept_Click(object sender, RoutedEventArgs ez)
         {
-            tr1 = float.Parse(t1.Text.Replace(".", ","), System.Globalization.NumberStyles.Any);
-            tr2 = float.Parse(t2.Text.Replace(".", ","), System.Globalization.NumberStyles.Any);
-            tr3 = int.Parse(t3.Text);
+            if (!TryParsePositiveFloat(t1.Text, out tr1) ||
+                !TryParsePositiveFloat(t2.Text, out tr2) ||
+                !int.TryParse(t3.Text, out tr3) ||
+                tr3 < 1)
+            {
+                UiDialogHelper.ShowWarning(this, "Введите параметры сегментации: sigma > 0, K > 0, min >= 1.");
+                return;
+            }
+
             this.DialogResult = true;
+        }
+
+        private bool TryParsePositiveFloat(string text, out float value)
+        {
+            text = text.Replace(",", ".");
+            return float.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out value) && value > 0;
         }
     }
 }

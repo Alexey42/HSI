@@ -76,7 +76,11 @@ namespace HSI
             float scalar = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
             float k1 = (float)Math.Sqrt(Math.Pow(a[0], 2) + Math.Pow(a[1], 2) + Math.Pow(a[2], 2));
             float k2 = (float)Math.Sqrt(Math.Pow(b[0], 2) + Math.Pow(b[1], 2) + Math.Pow(b[2], 2));
+            if (k1 == 0 || k2 == 0)
+                return float.MaxValue;
+
             float cos = scalar / (k1 * k2);
+            cos = Math.Max(-1, Math.Min(1, cos));
 
             return (float)(Math.Acos(cos) * 180 / Math.PI);
         }
@@ -147,7 +151,7 @@ namespace HSI
 
             backgroundWorker.ReportProgress(30);
             //edges.Sort((x, y) => x.w.CompareTo(y.w));
-            Array.Sort(edges, (x, y) => x.w.CompareTo(y.w));
+            Array.Sort(edges, 0, edgesNum, Comparer<Edge>.Create((x, y) => x.w.CompareTo(y.w)));
 
             Universe u = new Universe(verticesNum);
             float[] thresholds = new float[verticesNum];
@@ -211,8 +215,8 @@ namespace HSI
             }
             backgroundWorker.ReportProgress(100);
 
-            Mat result = new Mat(height, width, MatType.CV_8UC3, array);
-            return result;
+            using (Mat result = new Mat(height, width, MatType.CV_8UC3, array))
+                return result.Clone();
         }
     }
 }
