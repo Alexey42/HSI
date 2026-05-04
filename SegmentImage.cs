@@ -91,8 +91,8 @@ namespace HSI
             int width = image.Cols;
             int height = image.Rows;
             int verticesNum = width * height;
-            
-            Mat smoothed = image.GaussianBlur(Size.Zero, sigma);
+
+            Mat smoothed = image.GaussianBlur(new Size(0, 0), sigma);
             Vec3b[] array;
             smoothed.GetArray(out array);
             smoothed.Dispose();

@@ -79,9 +79,10 @@ namespace HSI
 
         void Parse(VistaFolderBrowserDialog ofd)
         {
-            if (Camera == "Landsat 8") sat.SetDirectory("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1"); // В релизе этой строки быть не должно
-            if (Camera == "Sentinel 2") sat.SetDirectory("D:\\HSI_images\\S2B_MSIL1C_20190602T080619_N0207_R078_T38VMH_20190602T102902.SAFE"); // В релизе этой строки быть не должно
-            if (Camera == "Aviris") sat.SetDirectory(@"D:\HSI_images\f080611t01p00r07rdn_c"); // В релизе этой строки быть не должно
+            //if (Camera == "Landsat 8") sat.SetDirectory("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1"); // В релизе этой строки быть не должно
+            //if (Camera == "Sentinel 2") sat.SetDirectory("D:\\HSI_images\\S2B_MSIL1C_20190602T080619_N0207_R078_T38VMH_20190602T102902.SAFE"); // В релизе этой строки быть не должно
+            //if (Camera == "Aviris") sat.SetDirectory(@"D:\HSI_images\f080611t01p00r07rdn_c"); // В релизе этой строки быть не должно
+            sat.SetDirectory(ofd.SelectedPath);
             if (ch1.Text != "...")
             {
                 BandPaths[0] = sat.FindBandByNumber(ch1.Text);

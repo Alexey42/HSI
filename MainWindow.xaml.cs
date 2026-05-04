@@ -460,36 +460,36 @@ namespace HSI
             string savePath = "";
 
             if (res.Item1 == "ClassifyBarycentric" || res.Item1 == "ClassifyAngle" || res.Item1 == "ClassifyEuclid") {
-                PrepareAndSaveStats("D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\3.txt");
-                savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\22.tif";
+                PrepareAndSaveStats(path + "\\3.txt");
+                savePath = path + "\\22.tif";
                 imageInfo.Dispose();
                 imageInfo = new ImageInfo(res.Item2, satellite, savePath, bandPaths, bandNames);
                 classify_btn.IsEnabled = true;
             }
             if (res.Item1 == "AddImage")
             {
-                savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\11.tif";
+                savePath = path + "\\11.tif";
                 imageInfo.Dispose();
                 imageInfo = new ImageInfo(res.Item2, satellite, savePath, bandPaths, bandNames);
                 addImage_btn.IsEnabled = true;
             }
             if (res.Item1 == "CalculateRaster")
             {
-                savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\44.tif";
+                savePath = path + "\\44.tif";
                 imageInfo.Dispose();
                 imageInfo = new ImageInfo(res.Item2, satellite, savePath, bandPaths, bandNames);
                 calcRaster_btn.IsEnabled = true;
             }
             if (res.Item1 == "GBSegmentationSpectralAngle")
             {
-                savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\5.tif";
+                savePath = path + "\\5.tif";
                 imageInfo.Dispose();
                 imageInfo = new ImageInfo(res.Item2, satellite, savePath, bandPaths, bandNames);
                 segment_btn.IsEnabled = true;
             }
             if (res.Item1 == "EMD")
             {
-                savePath = "D:\\HSI_images\\LC08_L2SP_174021_20200621_20200823_02_T1\\6.tif";
+                savePath = path + "\\6.tif";
                 imageInfo.Dispose();
                 imageInfo = new ImageInfo(res.Item2, satellite, savePath, bandPaths, bandNames);
                 EMD_btn.IsEnabled = true;
